@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Scheduled</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #f7f3ec; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #2a211c; }
+        .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08); }
+        .header { background: linear-gradient(135deg, #c2410c, #ea580c); padding: 32px; text-align: center; color: #ffffff; }
+        .header h1 { margin: 0; font-size: 24px; letter-spacing: 1px; }
+        .header p { margin: 8px 0 0; color: rgba(255, 255, 255, 0.86); }
+        .content { padding: 32px; }
+        .content h2 { margin-top: 0; font-size: 22px; }
+        .content p { line-height: 1.6; margin: 14px 0; }
+        .meta-box { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; padding: 16px; margin: 22px 0; }
+        .button-wrap { text-align: center; margin: 28px 0; }
+        .button { display: inline-block; padding: 14px 24px; background: #c2410c; color: #ffffff !important; text-decoration: none; border-radius: 999px; font-weight: 700; }
+        .footer { padding: 20px 32px 28px; font-size: 13px; color: #7c6a5f; border-top: 1px solid #f1e6da; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ site_name }}</h1>
+            <p>Secure Virtual Meeting Platform</p>
+        </div>
+        <div class="content">
+            <h2>{{ headline }}</h2>
+            <p>{{ summary }}</p>
+            <div class="meta-box">
+                <p style="margin: 0 0 8px;"><strong>Meeting:</strong> {{ meeting_title }}</p>
+                <p style="margin: 0 0 8px;"><strong>Group:</strong> {{ group_name }}</p>
+                <p style="margin: 0 0 8px;"><strong>Host:</strong> {{ host_name }}</p>
+                <p style="margin: 0 0 8px;"><strong>Start:</strong> {{ scheduled_start }}</p>
+                {% if scheduled_end %}
+                <p style="margin: 0;"><strong>End:</strong> {{ scheduled_end }}</p>
+                {% endif %}
+            </div>
+            {% if meeting_description %}
+            <p><strong>Description:</strong> {{ meeting_description }}</p>
+            {% endif %}
+            <div class="button-wrap">
+                <a href="{{ meeting_url }}" class="button">{{ action_label }}</a>
+            </div>
+            <p>
+                Regards,<br>
+                <strong>{{ site_name }} Team</strong>
+            </p>
+        </div>
+        <div class="footer">
+            &copy; {{ site_name }}<br>
+            Organized • Private • Reliable
+        </div>
+    </div>
+</body>
+</html>

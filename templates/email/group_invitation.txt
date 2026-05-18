@@ -1,0 +1,19 @@
+Hello,
+
+You have been invited to join "{{ group_name }}" on {{ site_name }}.
+
+Invited by: {{ inviter_name }}
+Account: {{ recipient_email }}
+
+{% if message %}
+Personal note:
+{{ message }}
+
+{% endif %}
+Sign in to your account to accept or decline this invitation:
+{{ login_url }}
+
+If you were not expecting this invitation, you can safely ignore this email.
+
+Regards,
+{{ site_name }} Team

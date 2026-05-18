@@ -1,0 +1,11 @@
+Hello,
+
+Your membership in "{{ group_name }}" has been verified on {{ site_name }}.
+
+You can now participate as a full member of the group.
+
+Sign in here:
+{{ login_url }}
+
+Regards,
+{{ site_name }} Team

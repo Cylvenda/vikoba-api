@@ -1,0 +1,18 @@
+Hello,
+
+{{ headline }}
+
+Meeting: {{ meeting_title }}
+Group: {{ group_name }}
+Host: {{ host_name }}
+Started at: {{ scheduled_start }}
+{% if meeting_description %}
+Description:
+{{ meeting_description }}
+
+{% endif %}
+Join here:
+{{ meeting_url }}
+
+Regards,
+{{ site_name }} Team
