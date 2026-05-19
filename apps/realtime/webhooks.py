@@ -18,7 +18,7 @@ from .services import (
 @csrf_exempt
 def livekit_webhook(request):
     """
-    Receives events from LiveKit server
+    Receives events from the live session server.
     """
 
     if request.method != "POST":

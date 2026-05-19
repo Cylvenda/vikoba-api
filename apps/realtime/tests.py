@@ -104,14 +104,14 @@ class RealtimeFlowTests(APITestCase):
 
         with patch(
             "apps.realtime.views.generate_livekit_access_token",
-            side_effect=LiveKitConfigurationError("LiveKit credentials are missing."),
+            side_effect=LiveKitConfigurationError("Live Session credentials are missing."),
         ):
             response = self.client.post(
                 reverse("realtime-livekit-token", kwargs={"uuid": self.meeting.uuid})
             )
 
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
-        self.assertEqual(response.data["detail"], "LiveKit credentials are missing.")
+        self.assertEqual(response.data["detail"], "Live Session credentials are missing.")
 
     def test_webhook_join_and_leave_drive_attendance(self):
         join_payload = {

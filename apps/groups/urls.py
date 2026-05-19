@@ -11,7 +11,8 @@ from .views import (
     MyGroupInvitationListView,
     RespondGroupInvitationView,
     CancelGroupInvitationView,
-
+    RemoveGroupMemberView,
+    ChangeGroupMemberRoleView,
 )
 
 urlpatterns = [
@@ -36,6 +37,16 @@ urlpatterns = [
         "<uuid:group_uuid>/members/<uuid:membership_uuid>/activate/",
         ToggleGroupMemberActiveView.as_view(),
         name="group-member-activate",
+    ),
+    path(
+        "<uuid:group_uuid>/members/<uuid:membership_uuid>/remove/",
+        RemoveGroupMemberView.as_view(),
+        name="group-member-remove",
+    ),
+    path(
+        "<uuid:group_uuid>/members/<uuid:membership_uuid>/change-role/",
+        ChangeGroupMemberRoleView.as_view(),
+        name="group-member-change-role",
     ),
     path(
         "<uuid:group_uuid>/invitations/send/",

@@ -79,8 +79,15 @@ class GroupMemberListView(generics.ListAPIView):
 
     def get_queryset(self):
         group = get_group_or_404(self.kwargs["uuid"])
+        is_member = GroupMembership.objects.filter(
+            group=group,
+            user=self.request.user,
+            is_active=True,
+            is_verified=True,
+        ).exists()
 
-       # is_group_host(self.request.user, group)
+        if not is_member:
+            return GroupMembership.objects.none()
 
         return (
             GroupMembership.objects.filter(group=group)
@@ -345,3 +352,120 @@ class CancelGroupInvitationView(generics.GenericAPIView):
             {"detail": "Invitation cancelled successfully."},
             status=status.HTTP_200_OK,
         )
+
+
+class RemoveGroupMemberView(generics.GenericAPIView):
+    """
+    Allows Chairperson or Secretary to permanently remove a member from the group.
+    The Chairperson cannot remove themselves.
+    """
+    serializer_class = EmptySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, group_uuid, membership_uuid):
+        group = get_group_or_404(group_uuid)
+
+        # Only chairperson or secretary may remove members
+        requesting_membership = group.memberships.filter(
+            user=request.user,
+            is_active=True,
+            is_verified=True,
+            role__in=[GroupMembership.Role.CHAIRPERSON, GroupMembership.Role.SECRETARY],
+        ).first()
+
+        if not requesting_membership:
+            return Response(
+                {"detail": "Only Chairperson or Secretary can remove members."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        target = get_object_or_404(
+            GroupMembership,
+            uuid=membership_uuid,
+            group=group,
+        )
+
+        # Prevent removing the Chairperson
+        if target.role == GroupMembership.Role.CHAIRPERSON:
+            return Response(
+                {"detail": "The Chairperson cannot be removed from the group."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Prevent removing yourself
+        if target.user == request.user:
+            return Response(
+                {"detail": "You cannot remove yourself from the group via this endpoint."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target.delete()
+
+        return Response(
+            {"detail": "Member removed from the group successfully."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class ChangeGroupMemberRoleView(generics.GenericAPIView):
+    """
+    Allows only the Chairperson to change a member's role.
+    Cannot change the role of the Chairperson themselves.
+    """
+    serializer_class = EmptySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    VALID_ROLES = [
+        GroupMembership.Role.SECRETARY,
+        GroupMembership.Role.TREASURER,
+        GroupMembership.Role.MEMBER,
+    ]
+
+    def patch(self, request, group_uuid, membership_uuid):
+        group = get_group_or_404(group_uuid)
+
+        # Only the Chairperson can change roles
+        is_chair = group.memberships.filter(
+            user=request.user,
+            is_active=True,
+            is_verified=True,
+            role=GroupMembership.Role.CHAIRPERSON,
+        ).exists()
+
+        if not is_chair:
+            return Response(
+                {"detail": "Only the Chairperson can change member roles."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        new_role = request.data.get("role")
+        if new_role not in [r.value for r in self.VALID_ROLES]:
+            return Response(
+                {"detail": f"Invalid role. Must be one of: {', '.join([r.value for r in self.VALID_ROLES])}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target = get_object_or_404(
+            GroupMembership,
+            uuid=membership_uuid,
+            group=group,
+        )
+
+        # Protect the Chairperson seat
+        if target.role == GroupMembership.Role.CHAIRPERSON:
+            return Response(
+                {"detail": "The Chairperson's role cannot be changed through this endpoint."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target.role = new_role
+        target.save(update_fields=["role"])
+
+        return Response(
+            {
+                "detail": f"Member role updated to {new_role} successfully.",
+                "data": GroupMembershipSerializer(target).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+

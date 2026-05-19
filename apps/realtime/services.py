@@ -25,14 +25,14 @@ def validate_livekit_webhook(*, body, auth_header):
 
     if not settings.LIVEKIT_API_KEY or not settings.LIVEKIT_API_SECRET:
         raise LiveKitConfigurationError(
-            "LiveKit credentials are not configured on the server."
+            "Live Session credentials are not configured on the server."
         )
 
     try:
         from livekit.api import TokenVerifier, WebhookReceiver
     except ImportError as exc:
         raise LiveKitUnavailableError(
-            "LiveKit server SDK is not installed on the server."
+            "Live Sessions server SDK is not installed on the server."
         ) from exc
 
     try:
@@ -47,7 +47,7 @@ def validate_livekit_webhook(*, body, auth_header):
 
         receiver.receive(body, auth_header)
     except Exception as exc:
-        raise LiveKitWebhookVerificationError("Invalid LiveKit webhook signature.") from exc
+        raise LiveKitWebhookVerificationError("Invalid Live Sessions webhook signature.") from exc
 
 
 def resolve_live_meeting_user(*, meeting, participant_identity):
@@ -76,14 +76,14 @@ def user_can_join_live_meeting(*, meeting, user):
 def generate_livekit_access_token(*, user, meeting):
     if not settings.LIVEKIT_API_KEY or not settings.LIVEKIT_API_SECRET:
         raise LiveKitConfigurationError(
-            "LiveKit credentials are not configured on the server."
+            "Live Session credentials are not configured on the server."
         )
 
     try:
         from livekit import api
     except ImportError as exc:
         raise LiveKitUnavailableError(
-            "LiveKit SDK is not installed on the server."
+            "Live Sessions SDK is not installed on the server."
         ) from exc
 
     display_name = user.full_name.strip() or user.username or user.email
