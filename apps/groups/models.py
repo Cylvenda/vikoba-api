@@ -1,6 +1,11 @@
 from django.db import models
 import uuid
 from django.conf import settings
+import string
+import random
+
+def generate_join_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 
 class Group(models.Model):
@@ -17,6 +22,11 @@ class Group(models.Model):
     name = models.CharField(
         max_length=150,
         unique=True,
+    )
+    join_code = models.CharField(
+        max_length=10,
+        unique=True,
+        default=generate_join_code,
     )
     description = models.TextField(
         blank=True,

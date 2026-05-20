@@ -3,13 +3,16 @@ from apps.finance.models import Contribution
 from apps.groups.models import GroupMembership
 
 class ContributionSerializer(serializers.ModelSerializer):
-
     member_name = serializers.CharField(
         source="member.user.get_full_name",
         read_only=True,
     )
     group_name = serializers.CharField(
         source="group.name",
+        read_only=True,
+    )
+    received_by_name = serializers.CharField(
+        source="received_by.get_full_name",
         read_only=True,
     )
 
@@ -27,6 +30,7 @@ class ContributionSerializer(serializers.ModelSerializer):
             "reference",
             "paid_at",
             "received_by",
+            "received_by_name",
             "note",
             "created_at",
         ]

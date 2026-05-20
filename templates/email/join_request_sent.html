@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: sans-serif; line-height: 1.5; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .btn { display: inline-block; padding: 10px 20px; background-color: #007bff; color: #fff; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Join Request Sent</h2>
+        <p>Hello,</p>
+        <p>You have successfully requested to join the group <strong>{{ group_name }}</strong> on {{ site_name }}.</p>
+        <p>Your request is currently pending admin approval. You will receive another notification once an administrator reviews your request.</p>
+        <p>
+            <a href="{{ login_url }}" class="btn">Log in to your account</a>
+        </p>
+        <p>Thank you,<br>The {{ site_name }} Team</p>
+    </div>
+</body>
+</html>

@@ -29,10 +29,32 @@ def is_user_group_leader(user, group):
     ).exists()
 
 
+def is_user_group_finance_manager(user, group):
+    return GroupMembership.objects.filter(
+        user=user,
+        group=group,
+        is_active=True,
+        is_verified=True,
+        role__in=[
+            GroupMembership.Role.CHAIRPERSON,
+            GroupMembership.Role.SECRETARY,
+            GroupMembership.Role.TREASURER,
+        ],
+    ).exists()
+
+
 def is_group_leader(user, group):
     if not is_user_group_leader(user, group):
         raise PermissionDenied(
             "Only the Chairperson or Secretary can perform this action."
+        )
+    return True
+
+
+def is_group_finance_manager(user, group):
+    if not is_user_group_finance_manager(user, group):
+        raise PermissionDenied(
+            "Only the Chairperson, Secretary, or Treasurer can perform this action."
         )
     return True
 
@@ -42,3 +64,4 @@ def is_group_member(user, group):
         raise PermissionDenied(
             "Only a group member can perform this action."
         )
+    return True

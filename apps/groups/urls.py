@@ -13,9 +13,12 @@ from .views import (
     CancelGroupInvitationView,
     RemoveGroupMemberView,
     ChangeGroupMemberRoleView,
+    JoinGroupByCodeView,
+    AdminApproveJoinRequestView,
 )
 
 urlpatterns = [
+    path("join/", JoinGroupByCodeView.as_view(), name="join-group-by-code"),
     path("", GroupListCreateView.as_view(), name="group-list-create"),
     path("<uuid:uuid>/", GroupDetailView.as_view(), name="group-detail"),
     path(
@@ -72,5 +75,10 @@ urlpatterns = [
         "<uuid:group_uuid>/invitations/<uuid:invitation_uuid>/cancel/",
         CancelGroupInvitationView.as_view(),
         name="cancel-group-invitation",
+    ),
+    path(
+        "<uuid:group_uuid>/join-requests/<uuid:invitation_uuid>/respond/",
+        AdminApproveJoinRequestView.as_view(),
+        name="admin-respond-join-request",
     ),
 ]

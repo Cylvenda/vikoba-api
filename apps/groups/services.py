@@ -122,3 +122,105 @@ def notify_invitation_declined(invitation):
         logger.exception(
             "Failed to create decline notification for invitation %s", invitation.uuid
         )
+
+
+def send_join_request_email(invitation):
+    subject = f"Your request to join {invitation.group.name} has been sent"
+    login_url = f"{getattr(settings, 'FRONTEND_URL', '').rstrip('/')}/login"
+    context = {
+        "site_name": "Community Hub",
+        "group_name": invitation.group.name,
+        "recipient_email": invitation.email,
+        "login_url": login_url,
+    }
+    send_templated_email(
+        subject=subject,
+        to=[invitation.email],
+        text_template="email/join_request_sent.txt",
+        html_template="email/join_request_sent.html",
+        context=context,
+    )
+
+
+def send_admin_join_request_email(invitation, admin_user):
+    subject = f"New Join Request for {invitation.group.name}"
+    login_url = f"{getattr(settings, 'FRONTEND_URL', '').rstrip('/')}/login"
+    context = {
+        "site_name": "Community Hub",
+        "group_name": invitation.group.name,
+        "recipient_email": invitation.email,
+        "login_url": login_url,
+    }
+    send_templated_email(
+        subject=subject,
+        to=[admin_user.email],
+        text_template="email/admin_join_request_received.txt",
+        html_template="email/admin_join_request_received.html",
+        context=context,
+    )
+
+def notify_join_request_sent(invitation):
+    try:
+        send_join_request_email(invitation)
+    except Exception:
+        logger.exception(
+            "Failed to send join request email for invitation %s", invitation.uuid
+        )
+
+    # Notify user in-app
+    if invitation.invited_by:
+        create_notification(
+            user=invitation.invited_by,
+            title="Join Request Sent",
+            message=f"Your request to join '{invitation.group.name}' is pending admin approval.",
+            notification_type=Notification.NotificationType.GENERAL,
+            group_uuid=invitation.group.uuid,
+        )
+
+    # Notify group admins
+    from .models import GroupMembership
+    admins = GroupMembership.objects.filter(
+        group=invitation.group,
+        role__in=[GroupMembership.Role.CHAIRPERSON, GroupMembership.Role.SECRETARY],
+        is_verified=True,
+        is_active=True,
+    ).select_related("user")
+
+    for admin_membership in admins:
+        admin_user = admin_membership.user
+        if not admin_user:
+            continue
+            
+        try:
+            send_admin_join_request_email(invitation, admin_user)
+        except Exception:
+            logger.exception("Failed to send admin join request email to %s", admin_user.email)
+            
+        try:
+            create_notification(
+                user=admin_user,
+                title="New Join Request",
+                message=f"A new user ({invitation.email}) requested to join '{invitation.group.name}'.",
+                notification_type=Notification.NotificationType.GENERAL,
+                group_uuid=invitation.group.uuid,
+            )
+        except Exception:
+            pass
+
+
+def notify_join_request_approved(target_user, group):
+    try:
+        send_membership_verified_email(target_user, group)
+    except Exception:
+        logger.exception("Failed to send membership verified email to %s", target_user.email)
+
+    try:
+        create_notification(
+            user=target_user,
+            title="Join Request Approved",
+            message=f"Your request to join '{group.name}' has been approved! You are now a member.",
+            notification_type=Notification.NotificationType.GENERAL,
+            group_uuid=group.uuid,
+        )
+    except Exception:
+        pass

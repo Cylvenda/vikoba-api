@@ -11,10 +11,11 @@ from .serializers import (
     GroupMembershipSerializer,
     VerifyGroupMemberSerializer,
     SendGroupInvitationSerializer,
-    GroupInvitationSerializer,
-    RespondGroupInvitationSerializer,
     GroupMembershipSerializer,
     GroupInvitationSerializer,
+    RespondGroupInvitationSerializer,
+    AdminRespondJoinRequestSerializer,
+    JoinGroupByCodeSerializer,
     EmptySerializer,
 )
 from .permissions import is_group_host, get_group_or_404
@@ -322,6 +323,92 @@ class RespondGroupInvitationView(generics.GenericAPIView):
         )
 
 
+class AdminApproveJoinRequestView(generics.GenericAPIView):
+    serializer_class = AdminRespondJoinRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "uuid"
+    lookup_url_kwarg = "invitation_uuid"
+
+    def post(self, request, group_uuid, invitation_uuid):
+        group = get_group_or_404(group_uuid)
+        is_group_host(request.user, group)
+
+        invitation = get_object_or_404(
+            GroupInvitation.objects.select_related("group", "invited_by"),
+            uuid=invitation_uuid,
+            group=group,
+        )
+
+        serializer = self.get_serializer(
+            data=request.data,
+            context={"invitation": invitation, "request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        action = serializer.validated_data["action"]
+        
+        target_user = get_user_model().objects.filter(email=invitation.email).first()
+
+        if action == "decline":
+            invitation.status = GroupInvitation.Status.DECLINED
+            invitation.responded_at = timezone.now()
+            invitation.save(update_fields=["status", "responded_at"])
+
+            if target_user:
+                from apps.notifications.services import create_notification
+                from apps.notifications.models import Notification
+                try:
+                    create_notification(
+                        user=target_user,
+                        title="Join Request Declined",
+                        message=f"Your request to join '{group.name}' was declined by the administrator.",
+                        notification_type=Notification.NotificationType.GENERAL,
+                        group_uuid=group.uuid,
+                    )
+                except Exception:
+                    pass
+
+            return Response(
+                {"detail": "Join request declined successfully."},
+                status=status.HTTP_200_OK,
+            )
+
+        # Accept
+        invitation.status = GroupInvitation.Status.ACCEPTED
+        invitation.responded_at = timezone.now()
+        invitation.save(update_fields=["status", "responded_at"])
+
+        if target_user:
+            membership, created = GroupMembership.objects.get_or_create(
+                group=group,
+                user=target_user,
+                defaults={
+                    "role": GroupMembership.Role.MEMBER,
+                    "is_active": True,
+                    "is_verified": True,
+                },
+            )
+
+            if not created:
+                membership_updates = []
+                if not membership.is_verified:
+                    membership.is_verified = True
+                    membership_updates.append("is_verified")
+                if not membership.is_active:
+                    membership.is_active = True
+                    membership_updates.append("is_active")
+                if membership_updates:
+                    membership.save(update_fields=membership_updates)
+
+            from .services import notify_join_request_approved
+            notify_join_request_approved(target_user, group)
+
+        return Response(
+            {"detail": "Join request approved successfully."},
+            status=status.HTTP_200_OK,
+        )
+
+
 class CancelGroupInvitationView(generics.GenericAPIView):
     serializer_class = EmptySerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -469,3 +556,57 @@ class ChangeGroupMemberRoleView(generics.GenericAPIView):
             status=status.HTTP_200_OK,
         )
 
+class JoinGroupByCodeView(generics.GenericAPIView):
+    """
+    Allows a user to request to join a group using its short code.
+    Creates a pending (unverified) membership.
+    """
+    serializer_class = JoinGroupByCodeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        join_code = serializer.validated_data["join_code"]
+        
+        group = get_object_or_404(Group, join_code=join_code)
+
+        # Check if already a member
+        if GroupMembership.objects.filter(group=group, user=request.user).exists():
+            return Response(
+                {"detail": "You are already a member of this group."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check if a pending join request already exists
+        invitation, created = GroupInvitation.objects.get_or_create(
+            group=group,
+            email=request.user.email,
+            defaults={
+                "invited_by": request.user,
+                "status": GroupInvitation.Status.PENDING,
+                "message": "Your request to join is already exist.",
+            },
+        )
+
+        if not created and invitation.status == GroupInvitation.Status.PENDING:
+            return Response(
+                {"detail": "Your request to join is already pending admin approval."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        if not created and invitation.status != GroupInvitation.Status.PENDING:
+            invitation.status = GroupInvitation.Status.PENDING
+            invitation.message = "Requested to join via short code"
+            invitation.save(update_fields=["status", "message"])
+
+        from .services import notify_join_request_sent
+        notify_join_request_sent(invitation)
+
+        return Response(
+            {
+                "detail": "Join request sent successfully. Pending admin approval.",
+                "invitation": GroupInvitationSerializer(invitation).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )

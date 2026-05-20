@@ -1,0 +1,11 @@
+Hello,
+
+You have successfully requested to join the group "{{ group_name }}" on {{ site_name }}.
+
+Your request is currently pending admin approval. You will receive another notification once an administrator reviews your request.
+
+You can log in to check your status here:
+{{ login_url }}
+
+Thank you,
+The {{ site_name }} Team

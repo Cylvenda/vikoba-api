@@ -40,6 +40,7 @@ class GroupSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "join_code",
             "description",
             "created_by",
             "is_active",
@@ -209,6 +210,20 @@ class RespondGroupInvitationSerializer(serializers.Serializer):
         return attrs
 
 
+class AdminRespondJoinRequestSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["accept", "decline"])
+
+    def validate(self, attrs):
+        invitation = self.context["invitation"]
+        
+        if invitation.status != GroupInvitation.Status.PENDING:
+            raise serializers.ValidationError(
+                {"detail": "This join request has already been handled."}
+            )
+
+        return attrs
+
+
 class EmptySerializer(serializers.Serializer):
     pass
 
@@ -227,3 +242,12 @@ class ToggleGroupMemberActiveSerializer(serializers.Serializer):
 
 class RespondInvitationSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=["accept", "decline"])
+
+class JoinGroupByCodeSerializer(serializers.Serializer):
+    join_code = serializers.CharField(max_length=10)
+
+    def validate_join_code(self, value):
+        from .models import Group
+        if not Group.objects.filter(join_code=value).exists():
+            raise serializers.ValidationError("Invalid join code.")
+        return value

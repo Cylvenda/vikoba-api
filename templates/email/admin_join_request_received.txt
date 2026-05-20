@@ -1,0 +1,9 @@
+Hello,
+
+A new user ({{ recipient_email }}) has requested to join your group "{{ group_name }}" on {{ site_name }}.
+
+Please log in to your Community Roster to approve or decline this request:
+{{ login_url }}
+
+Thank you,
+The {{ site_name }} Team
