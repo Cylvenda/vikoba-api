@@ -63,6 +63,10 @@ class LoanRequestCategories(models.Model):
         related_name="loans_request_category",
     )
     name = models.CharField(max_length=20)
+    interest_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+    )
     amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -106,10 +110,6 @@ class Loan(models.Model):
         on_delete=models.CASCADE,
         related_name="loans",
     )
-    interest_rate = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-    )
     purpose = models.TextField(blank=True, null=True)
     status = models.CharField(
         max_length=20,
@@ -124,10 +124,6 @@ class Loan(models.Model):
         related_name="approved_loans",
     )
     approved_at = models.DateTimeField(
-        blank=True,
-        null=True,
-    )
-    disbursed_at = models.DateTimeField(
         blank=True,
         null=True,
     )
@@ -162,7 +158,6 @@ class LoanRepayment(models.Model):
         null=True,
     )
     note = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
