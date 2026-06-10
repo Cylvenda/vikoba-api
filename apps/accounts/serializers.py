@@ -54,6 +54,7 @@ class AdminGroupManageSerializer(serializers.ModelSerializer):
             "uuid",
             "name",
             "description",
+            "max_concurrent_loans",
             "created_by",
             "is_active",
             "visibility",

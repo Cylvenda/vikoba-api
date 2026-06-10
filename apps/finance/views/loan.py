@@ -1,42 +1,44 @@
-from rest_framework.views import APIView
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
 from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
-from apps.groups.models import GroupMembership
-from apps.finance.models import Loan, LoanRequestCategories
-from apps.finance.services.loan_service import LoanService
-from apps.finance.serializers.loan import (
-    LoanRequestCategoriesSerializer,
-    LoanSerializer,
-    LoanRequestSerializer,
-)
+from rest_framework import status, viewsets
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.finance.models import Loan, LoanProduct
 from apps.finance.permissions import (
     get_group_or_404,
     is_group_leader,
     is_group_member,
     is_user_group_leader,
+    is_group_treasurer,
 )
+from apps.finance.serializers.loan import (
+    LoanProductSerializer,
+    LoanRequestSerializer,
+    LoanSerializer,
+)
+from apps.finance.services.loan_service import LoanService
+from apps.groups.models import GroupMembership
 
-class LoanRequestCategoriesViewSet(viewsets.ModelViewSet):
-    queryset: QuerySet[LoanRequestCategories] = LoanRequestCategories.objects.all()
-    serializer_class = LoanRequestCategoriesSerializer
+
+class LoanProductViewSet(viewsets.ModelViewSet):
+    queryset: QuerySet[LoanProduct] = LoanProduct.objects.all()
+    serializer_class = LoanProductSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = "uuid"
     lookup_url_kwarg = "uuid"
-    
-    def get_queryset(self) -> QuerySet[LoanRequestCategories]:
+
+    def get_queryset(self) -> QuerySet[LoanProduct]:
         group_uuid = (
             self.request.query_params.get("group_uuid")
             or self.request.data.get("group_uuid")
         )
 
-        queryset = LoanRequestCategories.objects.filter(
+        queryset = LoanProduct.objects.filter(
             group__memberships__user=self.request.user,
             group__memberships__is_active=True,
-            group__memberships__is_verified=True
+            group__memberships__is_verified=True,
         ).distinct()
 
         if group_uuid:
@@ -49,7 +51,6 @@ class LoanRequestCategoriesViewSet(viewsets.ModelViewSet):
 
         group = get_group_or_404(group_uuid)
 
-        # Check permission BEFORE saving
         is_group_leader(self.request.user, group)
 
         serializer.save(created_by=self.request.user, group=group)
@@ -79,11 +80,8 @@ class LoanRequestAPIView(APIView):
         queryset = Loan.objects.filter(group=group).select_related(
             "group",
             "borrower__user",
-            "loan_request_category",
-        )
-
-        if not is_user_group_leader(request.user, group):
-            queryset = queryset.filter(borrower__user=request.user)
+            "loan_product",
+        ).prefetch_related("installments")
 
         serializer = LoanSerializer(queryset, many=True)
 
@@ -106,9 +104,8 @@ class LoanRequestAPIView(APIView):
             is_active=True,
             is_verified=True,
         )
-        loan_request_category = get_object_or_404(
-            
-            LoanRequestCategories,
+        loan_product = get_object_or_404(
+            LoanProduct,
             uuid=data["loan_request_category_id"],
             group=group,
         )
@@ -116,8 +113,7 @@ class LoanRequestAPIView(APIView):
         loan = LoanService.request_loan(
             borrower=borrower,
             group=group,
-            loan_request_category=loan_request_category,
-            interest_rate=data["interest_rate"],
+            loan_product=loan_product,
             purpose=data.get("purpose", ""),
         )
 
@@ -134,7 +130,7 @@ class ApproveLoanAPIView(APIView):
 
     def post(self, request, loan_uuid):
         loan = get_object_or_404(
-            Loan.objects.select_related("group", "loan_request_category"),
+            Loan.objects.select_related("group", "loan_product").prefetch_related("installments"),
             uuid=loan_uuid,
         )
 
@@ -156,12 +152,39 @@ class ApproveLoanAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class DisburseLoanAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, loan_uuid):
+        loan = get_object_or_404(
+            Loan.objects.select_related("group", "loan_product").prefetch_related("installments"),
+            uuid=loan_uuid,
+        )
+
+        is_group_treasurer(request.user, loan.group)
+
+        if loan.status != Loan.Status.APPROVED:
+            return Response(
+                {"detail": "Only approved loans can be disbursed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        loan = LoanService.disburse_loan(
+            loan=loan,
+            disbursed_by=request.user,
+        )
+
+        serializer = LoanSerializer(loan)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class RejectLoanAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, loan_uuid):
         loan = get_object_or_404(
-            Loan.objects.select_related("group", "loan_request_category"),
+            Loan.objects.select_related("group", "loan_product").prefetch_related("installments"),
             uuid=loan_uuid,
         )
 

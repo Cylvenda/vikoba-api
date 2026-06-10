@@ -73,7 +73,7 @@ def notify_invitation_sent(invitation):
         )
 
     existing_user = User.objects.filter(email=invitation.email).first()
-    if existing_user:
+    if existing_user and existing_user.pk != invitation.invited_by_id:
         create_notification(
             user=existing_user,
             title="New Group Invitation",
@@ -89,16 +89,17 @@ def notify_invitation_sent(invitation):
 
 def notify_invitation_accepted(invitation):
     try:
-        create_notification(
-            user=invitation.invited_by,
-            title="Invitation Accepted",
-            message=(
-                f"{invitation.email} accepted your invitation and is now part of '{invitation.group.name}'."
-            ),
-            notification_type=Notification.NotificationType.INVITATION_ACCEPTED,
-            group_uuid=invitation.group.uuid,
-            invitation_uuid=invitation.uuid,
-        )
+        if invitation.invited_by.email.strip().lower() != invitation.email.strip().lower():
+            create_notification(
+                user=invitation.invited_by,
+                title="Invitation Accepted",
+                message=(
+                    f"{invitation.email} accepted your invitation and is now part of '{invitation.group.name}'."
+                ),
+                notification_type=Notification.NotificationType.INVITATION_ACCEPTED,
+                group_uuid=invitation.group.uuid,
+                invitation_uuid=invitation.uuid,
+            )
     except Exception:
         logger.exception(
             "Failed to create acceptance notification for invitation %s",
@@ -108,16 +109,17 @@ def notify_invitation_accepted(invitation):
 
 def notify_invitation_declined(invitation):
     try:
-        create_notification(
-            user=invitation.invited_by,
-            title="Invitation Declined",
-            message=(
-                f"{invitation.email} declined your invitation to join '{invitation.group.name}'."
-            ),
-            notification_type=Notification.NotificationType.GENERAL,
-            group_uuid=invitation.group.uuid,
-            invitation_uuid=invitation.uuid,
-        )
+        if invitation.invited_by.email.strip().lower() != invitation.email.strip().lower():
+            create_notification(
+                user=invitation.invited_by,
+                title="Invitation Declined",
+                message=(
+                    f"{invitation.email} declined your invitation to join '{invitation.group.name}'."
+                ),
+                notification_type=Notification.NotificationType.GENERAL,
+                group_uuid=invitation.group.uuid,
+                invitation_uuid=invitation.uuid,
+            )
     except Exception:
         logger.exception(
             "Failed to create decline notification for invitation %s", invitation.uuid

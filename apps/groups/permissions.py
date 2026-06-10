@@ -21,3 +21,22 @@ def is_group_host(user, group):
     if not is_user_group_host(user, group):
         raise PermissionDenied("Only the Chair Person can perform this action.")
     return True
+
+
+def is_user_group_manager(user, group):
+    return GroupMembership.objects.filter(
+        user=user,
+        group=group,
+        is_active=True,
+        is_verified=True,
+        role__in=[
+            GroupMembership.Role.CHAIRPERSON,
+            GroupMembership.Role.SECRETARY,
+        ],
+    ).exists()
+
+
+def is_group_manager(user, group):
+    if not is_user_group_manager(user, group):
+        raise PermissionDenied("Only the Chair Person or Secretary can perform this action.")
+    return True

@@ -47,6 +47,12 @@ class Group(models.Model):
         choices=Visibility.choices,
         default=Visibility.PRIVATE,
     )
+    max_concurrent_loans = models.PositiveIntegerField(default=1)
+    default_late_fee_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

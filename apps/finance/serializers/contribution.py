@@ -50,7 +50,7 @@ class CreateContributionSerializer(serializers.Serializer):
         max_digits=12,
         decimal_places=2,
     )
-    paid_at = serializers.DateTimeField()
+    paid_at = serializers.DateTimeField(required=False)
     reference = serializers.CharField(
         required=False,
         allow_blank=True,

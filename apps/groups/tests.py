@@ -31,7 +31,7 @@ class GroupInvitationAcceptanceTests(APITestCase):
         GroupMembership.objects.create(
             user=self.host,
             group=self.group,
-            role=GroupMembership.Role.HOST,
+            role=GroupMembership.Role.CHAIRPERSON,
             is_active=True,
             is_verified=True,
         )
@@ -103,3 +103,43 @@ class GroupInvitationAcceptanceTests(APITestCase):
         )
         self.assertTrue(membership.is_active)
         self.assertTrue(membership.is_verified)
+
+    def test_sending_an_invitation_to_yourself_is_rejected(self):
+        self.client.force_authenticate(user=self.host)
+        response = self.client.post(
+            reverse(
+                "send-group-invitation",
+                kwargs={"group_uuid": self.group.uuid},
+            ),
+            {"email": self.host.email, "message": "Join my group"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data["email"][0],
+            "You cannot invite yourself to your own group.",
+        )
+
+    def test_responding_to_a_self_sent_invitation_is_rejected(self):
+        invitation = GroupInvitation.objects.create(
+            group=self.group,
+            email=self.host.email,
+            invited_by=self.host,
+        )
+
+        self.client.force_authenticate(user=self.host)
+        response = self.client.post(
+            reverse(
+                "respond-group-invitation",
+                kwargs={"invitation_uuid": invitation.uuid},
+            ),
+            {"action": "accept"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            response.data["detail"][0],
+            "You cannot respond to an invitation you sent yourself.",
+        )

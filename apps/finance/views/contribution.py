@@ -61,7 +61,7 @@ class ContributionListCreateAPIView(APIView):
             member=member,
             group=group,
             amount=data["amount"],
-            paid_at=data["paid_at"],
+            paid_at=data.get("paid_at"),
             received_by=request.user,
             reference=data.get("reference"),
             note=data.get("note"),

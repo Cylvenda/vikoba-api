@@ -7,6 +7,7 @@ from django.utils import timezone
 from .serializers import (
     GroupSerializer,
     GroupCreateSerializer,
+    GroupUpdateSerializer,
     AddGroupMemberSerializer,
     GroupMembershipSerializer,
     VerifyGroupMemberSerializer,
@@ -19,6 +20,7 @@ from .serializers import (
     EmptySerializer,
 )
 from .permissions import is_group_host, get_group_or_404
+from .permissions import is_group_manager
 from django.contrib.auth import get_user_model
 from .services import (
     notify_invitation_sent,
@@ -98,8 +100,7 @@ class GroupMemberListView(generics.ListAPIView):
 
 
 # view group details
-class GroupDetailView(generics.RetrieveAPIView):
-    serializer_class = GroupSerializer
+class GroupDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = "uuid"
     lookup_url_kwarg = "uuid"
@@ -115,6 +116,16 @@ class GroupDetailView(generics.RetrieveAPIView):
             .prefetch_related("memberships__user")
             .distinct()
         )
+
+    def get_serializer_class(self):
+        if self.request.method in {"PATCH", "PUT"}:
+            return GroupUpdateSerializer
+        return GroupSerializer
+
+    def perform_update(self, serializer):
+        group = self.get_object()
+        is_group_host(self.request.user, group)
+        serializer.save()
 
 # verifying group members
 class VerifyGroupMemberView(generics.GenericAPIView):
@@ -225,7 +236,7 @@ class GroupInvitationListView(generics.ListAPIView):
 
     def get_queryset(self):
         group = get_group_or_404(self.kwargs["group_uuid"])
-        is_group_host(self.request.user, group)
+        is_group_manager(self.request.user, group)
 
         return (
             GroupInvitation.objects.filter(group=group)
@@ -331,7 +342,7 @@ class AdminApproveJoinRequestView(generics.GenericAPIView):
 
     def post(self, request, group_uuid, invitation_uuid):
         group = get_group_or_404(group_uuid)
-        is_group_host(request.user, group)
+        is_group_manager(request.user, group)
 
         invitation = get_object_or_404(
             GroupInvitation.objects.select_related("group", "invited_by"),

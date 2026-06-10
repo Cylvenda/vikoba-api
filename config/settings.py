@@ -50,8 +50,8 @@ if DEBUG and DEV_ALLOW_ALL_HOSTS:
 
 
 AUTH_COOKIE = "access"
-AUTH_COOKIE_ACCESS_MAX_AGE = 60 * 15  # 15 minutes — matches ACCESS_TOKEN_LIFETIME
-AUTH_COOKIE_REFRESH_MAX_AGE = 60 * 60 * 24  # 24 hrs
+AUTH_COOKIE_ACCESS_MAX_AGE = 60 * 5  # 5 minutes — matches ACCESS_TOKEN_LIFETIME
+AUTH_COOKIE_REFRESH_MAX_AGE = 60 * 15  # 15 minutes — matches REFRESH_TOKEN_LIFETIME
 AUTH_COOKIE_SECURE = env_bool("AUTH_COOKIE_SECURE", not DEBUG)
 AUTH_COOKIE_HTTP_ONLY = True
 AUTH_COOKIE_PATH = "/"
@@ -188,8 +188,8 @@ REST_FRAMEWORK = {
 # ─── Simple JWT ───────────────────────────────────────────────────────────────
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(minutes=15),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),

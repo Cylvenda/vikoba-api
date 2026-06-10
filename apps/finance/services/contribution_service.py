@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 
 from apps.finance.models import Contribution, Transaction
 from apps.finance.services.transaction_service import TransactionService
@@ -12,11 +13,13 @@ class ContributionService:
         member,
         group,
         amount,
-        paid_at,
+        paid_at=None,
         received_by,
         reference=None,
         note=None,
     ):
+
+        paid_at = paid_at or timezone.now()
 
         contribution = Contribution.objects.create(
             member=member,

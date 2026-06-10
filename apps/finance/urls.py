@@ -3,17 +3,27 @@ from rest_framework.routers import DefaultRouter
 from apps.finance.views.contribution import (
     ContributionListCreateAPIView,
 )
+from apps.finance.views.fine import (
+    FineListAPIView,
+    FinePaymentListCreateAPIView,
+)
 from apps.finance.views.loan import (
     ApproveLoanAPIView,
-    LoanRequestCategoriesViewSet,
+    DisburseLoanAPIView,
+    LoanProductViewSet,
     LoanRequestAPIView,
     RejectLoanAPIView,
+)
+from apps.finance.views.repayment import (
+    LoanInstallmentListAPIView,
+    LoanPaymentListAPIView,
+    LoanRepaymentAPIView,
 )
 
 router = DefaultRouter()
 router.register(
     r"loan-categories",
-    LoanRequestCategoriesViewSet,
+    LoanProductViewSet,
     basename="loan-categories",
 )
 
@@ -23,6 +33,16 @@ urlpatterns = [
         "contributions/",
         ContributionListCreateAPIView.as_view(),
         name="contribution-list-create",
+    ),
+    path(
+        "fines/",
+        FineListAPIView.as_view(),
+        name="fine-list",
+    ),
+    path(
+        "fines/payments/",
+        FinePaymentListCreateAPIView.as_view(),
+        name="fine-payment-list-create",
     ),
     path(
         "loans/request/",
@@ -35,8 +55,28 @@ urlpatterns = [
         name="approve-loan",
     ),
     path(
+        "loans/request/<uuid:loan_uuid>/disburse/",
+        DisburseLoanAPIView.as_view(),
+        name="disburse-loan",
+    ),
+    path(
         "loans/request/<uuid:loan_uuid>/reject/",
         RejectLoanAPIView.as_view(),
         name="reject-loan",
+    ),
+    path(
+        "loans/<uuid:loan_uuid>/repay/",
+        LoanRepaymentAPIView.as_view(),
+        name="repay-loan",
+    ),
+    path(
+        "loans/<uuid:loan_uuid>/installments/",
+        LoanInstallmentListAPIView.as_view(),
+        name="loan-installments",
+    ),
+    path(
+        "loans/<uuid:loan_uuid>/payments/",
+        LoanPaymentListAPIView.as_view(),
+        name="loan-payments",
     ),
 ]

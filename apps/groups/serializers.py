@@ -42,6 +42,8 @@ class GroupSerializer(serializers.ModelSerializer):
             "name",
             "join_code",
             "description",
+            "max_concurrent_loans",
+            "default_late_fee_amount",
             "created_by",
             "is_active",
             "members_count",
@@ -62,10 +64,21 @@ class GroupCreateSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "description",
+            "max_concurrent_loans",
+            "default_late_fee_amount",
             "is_active",
             "visibility",
         ]
         read_only_fields = ["id"]
+
+
+class GroupUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = [
+            "max_concurrent_loans",
+            "default_late_fee_amount",
+        ]
 
     def create(self, validated_data):
         request = self.context["request"]
@@ -131,8 +144,14 @@ class SendGroupInvitationSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs["email"].strip().lower()
         group = self.context["group"]
+        request_user = self.context["request"].user
 
         invited_user = User.objects.filter(email=email).first()
+
+        if email == request_user.email.strip().lower():
+            raise serializers.ValidationError(
+                {"email": "You cannot invite yourself to your own group."}
+            )
 
         if (
             invited_user
@@ -200,6 +219,11 @@ class RespondGroupInvitationSerializer(serializers.Serializer):
         if request_user.email.strip().lower() != invitation.email.strip().lower():
             raise serializers.ValidationError(
                 {"detail": "You are not allowed to respond to this invitation."}
+            )
+
+        if invitation.invited_by_id == request_user.id:
+            raise serializers.ValidationError(
+                {"detail": "You cannot respond to an invitation you sent yourself."}
             )
 
         if invitation.status != GroupInvitation.Status.PENDING:
