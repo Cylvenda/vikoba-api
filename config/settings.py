@@ -88,7 +88,8 @@ INSTALLED_APPS = [
     "apps.meetings",
     "apps.notifications",
     "apps.realtime",
-    "apps.finance"
+    "apps.finance",
+    "apps.payments"
 ]
 
 MIDDLEWARE = [
