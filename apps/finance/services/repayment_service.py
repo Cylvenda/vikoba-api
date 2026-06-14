@@ -8,6 +8,8 @@ from rest_framework.exceptions import ValidationError
 from apps.finance.models import Loan, LoanInstallment, LoanRepayment, Transaction
 from apps.finance.services.loan_service import LoanService
 from apps.finance.services.transaction_service import TransactionService
+from apps.finance.services.chart_of_accounts_service import ChartOfAccountsService
+from apps.finance.services.ledger_service import LedgerService
 
 
 class RepaymentService:
@@ -28,7 +30,7 @@ class RepaymentService:
         if loan.installments.exists():
             return loan.installments.order_by("installment_number")
 
-        return LoanService._generate_installments(loan)
+        return LoanService._generate_installments(loawn)
 
     @staticmethod
     def _update_installment_status(installment: LoanInstallment):
@@ -133,7 +135,7 @@ class RepaymentService:
                     note=note,
                 )
 
-                TransactionService.create_transaction(
+                finance_transaction = TransactionService.create_transaction(
                     group=loan.group,
                     transaction_type=Transaction.Type.LOAN_REPAYMENT,
                     direction=Transaction.Direction.IN,
@@ -141,6 +143,14 @@ class RepaymentService:
                     reference_id=payment.uuid,
                     description="Loan repayment",
                     created_by=received_by,
+                )
+
+                LedgerService.create_entry(
+                    transaction=finance_transaction,
+                    debit_account=ChartOfAccountsService.get_group_wallet_account(),
+                    credit_account=ChartOfAccountsService.get_loan_receivable_account(),
+                    amount=allocation_amount,
+                    narration="Loan repayment",
                 )
 
                 installment.amount_paid += allocation_amount
@@ -166,7 +176,7 @@ class RepaymentService:
                     note=note,
                 )
 
-                TransactionService.create_transaction(
+                finance_transaction = TransactionService.create_transaction(
                     group=loan.group,
                     transaction_type=Transaction.Type.LOAN_REPAYMENT,
                     direction=Transaction.Direction.IN,
@@ -174,6 +184,14 @@ class RepaymentService:
                     reference_id=payment.uuid,
                     description="Late fee payment",
                     created_by=received_by,
+                )
+
+                LedgerService.create_entry(
+                    transaction=finance_transaction,
+                    debit_account=ChartOfAccountsService.get_group_wallet_account(),
+                    credit_account=ChartOfAccountsService.get_penalty_income_account(),
+                    amount=allocation_amount,
+                    narration="Late fee payment",
                 )
 
                 installment.late_fee_paid += allocation_amount

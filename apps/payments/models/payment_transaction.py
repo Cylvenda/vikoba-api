@@ -3,7 +3,7 @@ import uuid
 from . import Wallet
 
 
-class Transaction(models.Model):
+class PaymentTransaction(models.Model):
 
     class TransactionType(models.TextChoices):
         COLLECTION = "COLLECTION"
@@ -21,10 +21,18 @@ class Transaction(models.Model):
         CANCELLED = "CANCELLED"
         REVERSED = "REVERSED"
 
+    class TransactionPurpose(models.TextChoices):
+        CONTRIBUTION = "CONTRIBUTION"
+        LOAN_REPAYMENT = "LOAN_REPAYMENT"
+        PENALTY_PAYMENT = "PENALTY_PAYMENT"
+        MEMBERSHIP_FEE = "MEMBERSHIP_FEE"
+        EVENT_PAYMENT = "EVENT_PAYMENT"
+
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     reference = models.CharField(max_length=100, unique=True)
     provider_reference = models.CharField(max_length=255, blank=True)
     transaction_type = models.CharField(max_length=30, choices=TransactionType.choices)
+    purpose = models.CharField(max_length=30, choices=TransactionPurpose.choices)
     status = models.CharField(
         max_length=30, choices=Status.choices, default=Status.DRAFT
     )

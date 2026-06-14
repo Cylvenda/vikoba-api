@@ -7,6 +7,8 @@ from rest_framework.exceptions import ValidationError
 
 from apps.finance.models import Loan, LoanInstallment, Transaction
 from apps.finance.services.transaction_service import TransactionService
+from apps.finance.services.chart_of_accounts_service import ChartOfAccountsService
+from apps.finance.services.ledger_service import LedgerService
 
 
 class LoanService:
@@ -164,7 +166,7 @@ class LoanService:
 
         LoanService._generate_installments(loan)
 
-        TransactionService.create_transaction(
+        finance_transaction = TransactionService.create_transaction(
             group=loan.group,
             transaction_type=Transaction.Type.LOAN_DISBURSEMENT,
             direction=Transaction.Direction.OUT,
@@ -172,6 +174,14 @@ class LoanService:
             reference_id=loan.uuid,
             description="Loan disbursement",
             created_by=disbursed_by,
+        )
+
+        LedgerService.create_entry(
+            transaction=finance_transaction,
+            debit_account=ChartOfAccountsService.get_loan_receivable_account(),
+            credit_account=ChartOfAccountsService.get_group_wallet_account(),
+            amount=loan.principal_amount,
+            narration="Loan disbursement",
         )
 
         return loan

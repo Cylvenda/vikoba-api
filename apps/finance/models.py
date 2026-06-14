@@ -438,3 +438,46 @@ class Transaction(models.Model):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class LedgerAccount(models.Model):
+
+    class AccountType(models.TextChoices):
+        ASSET = "ASSET"
+        LIABILITY = "LIABILITY"
+        EQUITY = "EQUITY"
+        INCOME = "INCOME"
+        EXPENSE = "EXPENSE"
+
+    code = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=255)
+    account_type = models.CharField(
+        max_length=20,
+        choices=AccountType.choices,
+    )
+    is_active = models.BooleanField(default=True)
+
+
+class LedgerEntry(models.Model):
+
+    transaction = models.ForeignKey(
+        "finance.Transaction",
+        on_delete=models.PROTECT,
+        related_name="ledger_entries",
+    )
+    account = models.ForeignKey(
+        LedgerAccount,
+        on_delete=models.PROTECT,
+    )
+    debit = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=0,
+    )
+    credit = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=0,
+    )
+    narration = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)

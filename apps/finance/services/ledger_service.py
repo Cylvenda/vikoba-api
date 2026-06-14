@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db import transaction
 
-from ..models import LedgerEntry
+from apps.finance.models import LedgerEntry
 
 
 class LedgerService:
@@ -16,8 +16,10 @@ class LedgerService:
         amount,
         narration,
     ):
-
         amount = Decimal(amount)
+
+        if amount <= Decimal("0.00"):
+            return None
 
         debit_entry = LedgerEntry.objects.create(
             transaction=transaction,
