@@ -65,6 +65,7 @@ class ContributionListCreateAPIView(APIView):
             received_by=request.user,
             reference=data.get("reference"),
             note=data.get("note"),
+            status=Contribution.Status.PENDING,
         )
 
         response_serializer = ContributionSerializer(contribution)

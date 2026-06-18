@@ -7,7 +7,8 @@ class LoanRepaymentHandler:
     @staticmethod
     def handle(transaction):
         try:
-            loan = Loan.objects.get(uuid=transaction.reference)
+            target_uuid = transaction.metadata.get("target_uuid")
+            loan = Loan.objects.get(uuid=target_uuid)
             RepaymentService.repay_loan(
                 loan=loan,
                 amount=transaction.amount,

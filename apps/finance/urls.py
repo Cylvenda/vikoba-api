@@ -19,6 +19,7 @@ from apps.finance.views.repayment import (
     LoanPaymentListAPIView,
     LoanRepaymentAPIView,
 )
+from apps.finance.views.snapshot import FinanceSnapshotAPIView
 
 router = DefaultRouter()
 router.register(
@@ -78,5 +79,10 @@ urlpatterns = [
         "loans/<uuid:loan_uuid>/payments/",
         LoanPaymentListAPIView.as_view(),
         name="loan-payments",
+    ),
+    path(
+        "groups/<uuid:group_uuid>/snapshot/",
+        FinanceSnapshotAPIView.as_view(),
+        name="finance-snapshot",
     ),
 ]

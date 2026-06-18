@@ -7,7 +7,8 @@ class PenaltyPaymentHandler:
     @staticmethod
     def handle(transaction):
         try:
-            fine = Fine.objects.get(uuid=transaction.reference)
+            target_uuid = transaction.metadata.get("target_uuid")
+            fine = Fine.objects.get(uuid=target_uuid)
             FineService.create_fine_payment(
                 fine=fine,
                 amount=transaction.amount,

@@ -1,6 +1,7 @@
-from payments.gateway.clickpesa import ClickPesaGateway
-from payments.models import PaymentTransaction
-from payments.services.payment_dispatcher import PaymentDispatcher
+from django.db import transaction
+from apps.payments.gateway.clickpesa import ClickPesaGateway
+from apps.payments.models import PaymentTransaction
+from apps.payments.services.payment_dispatcher import PaymentDispatcher
 
 
 class CollectionService:
@@ -13,76 +14,85 @@ class CollectionService:
         *,
         amount,
         phone,
-        wallet,
+        destination_wallet,
         reference,
-        description,
+        purpose,
+        target_uuid,
     ):
         """
         Creates local transaction record and sends
         collection request to ClickPesa.
         """
 
-        transaction = PaymentTransaction.objects.create(
-            wallet=wallet,
+        payment_transaction = PaymentTransaction.objects.create(
+            destination_wallet=destination_wallet,
             transaction_type=PaymentTransaction.TransactionType.COLLECTION,
             amount=amount,
             reference=reference,
-            description=description,
+            purpose=purpose,
             status=PaymentTransaction.Status.PENDING,
+            metadata={"target_uuid": str(target_uuid)},
         )
 
-        response = cls.gateway.collect(
-            amount=amount,
-            phone=phone,
-            reference=reference,
-        )
+        try:
+            response = cls.gateway.collect(
+                amount=amount,
+                phone=phone,
+                reference=reference,
+            )
+        except Exception:
+            payment_transaction.status = PaymentTransaction.Status.FAILED
+            payment_transaction.save(update_fields=["status"])
+            raise
 
-        transaction.gateway_reference = response.get("transaction_reference")
+        payment_transaction.gateway_reference = response.get("id") or response.get("orderReference")
 
-        transaction.raw_response = response
-        transaction.save(
+        payment_transaction.raw_response = response
+        payment_transaction.save(
             update_fields=[
                 "gateway_reference",
                 "raw_response",
             ]
         )
 
-        return transaction
+        return payment_transaction
 
     @classmethod
-    def process_successful_collection(cls, transaction):
+    @transaction.atomic
+    def process_successful_collection(cls, payment_transaction):
         """
         Money successfully received.
         """
 
-        if transaction.status == PaymentTransaction.Status.SUCCESS:
-            return transaction
+        if payment_transaction.status == PaymentTransaction.Status.SUCCESS:
+            return payment_transaction
 
-        transaction.status = PaymentTransaction.Status.SUCCESS
-        transaction.save(update_fields=["status"])
+        payment_transaction.status = PaymentTransaction.Status.SUCCESS
+        payment_transaction.save(update_fields=["status"])
 
-        wallet = transaction.wallet
+        wallet = payment_transaction.destination_wallet
+        if wallet:
+            wallet.available_balance += payment_transaction.amount
+            wallet.save(update_fields=["available_balance"])
 
-        wallet.available_balance += transaction.amount
-        wallet.save(update_fields=["available_balance"])
+        PaymentDispatcher.dispatch(payment_transaction)
 
-        PaymentDispatcher.dispatch(transaction)
-
-        return transaction
+        return payment_transaction
     
     @classmethod
-    def process_failed_collection(cls, transaction):
+    @transaction.atomic
+    def process_failed_collection(cls, payment_transaction):
 
-        if transaction.status in [
+        if payment_transaction.status in [
             PaymentTransaction.Status.SUCCESS,
             PaymentTransaction.Status.FAILED,
         ]:
-            return transaction
+            return payment_transaction
 
-        transaction.status = PaymentTransaction.Status.FAILED
+        payment_transaction.status = PaymentTransaction.Status.FAILED
 
-        transaction.save(
+        payment_transaction.save(
             update_fields=["status"]
         )
 
-        return transaction
+        return payment_transaction

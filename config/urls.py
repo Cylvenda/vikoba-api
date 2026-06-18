@@ -23,4 +23,6 @@ urlpatterns = [
     path("api/realtime/", include("apps.realtime.urls")),
     # finance endpoints
     path("api/finance/", include("apps.finance.urls")),
+    # payments endpoints
+    path("api/payments/", include("apps.payments.urls")),
 ]
