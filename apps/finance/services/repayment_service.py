@@ -30,7 +30,7 @@ class RepaymentService:
         if loan.installments.exists():
             return loan.installments.order_by("installment_number")
 
-        return LoanService._generate_installments(loawn)
+        return LoanService._generate_installments(loan)
 
     @staticmethod
     def _update_installment_status(installment: LoanInstallment):

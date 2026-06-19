@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.db import transaction
 
-from ..models import LedgerEntry
+from apps.finance.models import LedgerEntry
 
 
 class LedgerService:

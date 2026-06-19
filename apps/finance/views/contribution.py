@@ -47,7 +47,7 @@ class ContributionListCreateAPIView(APIView):
         data = serializer.validated_data
         group = get_group_or_404(data["group_id"])
 
-        is_group_finance_manager(request.user, group)
+        is_group_member(request.user, group)
 
         member = get_object_or_404(
             GroupMembership,
@@ -57,6 +57,21 @@ class ContributionListCreateAPIView(APIView):
             is_verified=True,
         )
 
+        # Permission check: Finance managers can create for anyone.
+        # Normal members can only create for themselves, and only with PENDING status.
+        if not is_user_group_finance_manager(request.user, group):
+            if member.user != request.user:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You can only record savings for yourself.")
+            
+            # Normal users must always create PENDING contributions (mobile money)
+            if data.get("status") == Contribution.Status.VERIFIED:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Members cannot self-verify cash contributions.")
+            
+            # Force PENDING just to be safe
+            data["status"] = Contribution.Status.PENDING
+
         contribution = ContributionService.create_contribution(
             member=member,
             group=group,
@@ -65,7 +80,7 @@ class ContributionListCreateAPIView(APIView):
             received_by=request.user,
             reference=data.get("reference"),
             note=data.get("note"),
-            status=Contribution.Status.PENDING,
+            status=data.get("status", Contribution.Status.PENDING),
         )
 
         response_serializer = ContributionSerializer(contribution)

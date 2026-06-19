@@ -19,7 +19,7 @@ class ContributionService:
         received_by,
         reference=None,
         note=None,
-        status=Contribution.Status.VERIFIED,
+        status=Contribution.Status.PENDING,
     ):
 
         paid_at = paid_at or timezone.now()

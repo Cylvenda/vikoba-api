@@ -45,13 +45,14 @@ class CollectionService:
             payment_transaction.save(update_fields=["status"])
             raise
 
-        payment_transaction.gateway_reference = response.get("id") or response.get("orderReference")
+        payment_transaction.provider_reference = response.get("id") or response.get("orderReference") or ""
 
-        payment_transaction.raw_response = response
+        # Just store raw response in metadata as there's no raw_response field
+        payment_transaction.metadata["raw_response"] = response
         payment_transaction.save(
             update_fields=[
-                "gateway_reference",
-                "raw_response",
+                "provider_reference",
+                "metadata",
             ]
         )
 

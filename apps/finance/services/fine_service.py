@@ -31,7 +31,10 @@ class FineService:
             note=note,
         )
 
-        TransactionService.create_transaction(
+        from apps.finance.services.chart_of_accounts_service import ChartOfAccountsService
+        from apps.finance.services.ledger_service import LedgerService
+
+        finance_transaction = TransactionService.create_transaction(
             group=fine.group,
             transaction_type=Transaction.Type.FINE_PAYMENT,
             direction=Transaction.Direction.IN,
@@ -39,6 +42,14 @@ class FineService:
             reference_id=payment.uuid,
             description="Fine payment",
             created_by=received_by,
+        )
+
+        LedgerService.create_entry(
+            transaction=finance_transaction,
+            debit_account=ChartOfAccountsService.get_group_wallet_account(),
+            credit_account=ChartOfAccountsService.get_penalty_income_account(),
+            amount=amount,
+            narration="Fine payment",
         )
 
         total_paid = fine.payments.aggregate(total=models.Sum("amount"))["total"] or Decimal(
