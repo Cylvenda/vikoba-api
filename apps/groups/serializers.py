@@ -76,8 +76,12 @@ class GroupUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = [
+            "name",
+            "description",
+            "visibility",
             "max_concurrent_loans",
             "default_late_fee_amount",
+            "is_active",
         ]
 
     def create(self, validated_data):

@@ -4,7 +4,8 @@ from apps.finance.views.contribution import (
     ContributionListCreateAPIView,
 )
 from apps.finance.views.fine import (
-    FineListAPIView,
+    FineCategoryViewSet,
+    FineListCreateAPIView,
     FinePaymentListCreateAPIView,
 )
 from apps.finance.views.loan import (
@@ -27,6 +28,11 @@ router.register(
     LoanProductViewSet,
     basename="loan-categories",
 )
+router.register(
+    r"fine-categories",
+    FineCategoryViewSet,
+    basename="fine-categories",
+)
 
 urlpatterns = [
     path("", include(router.urls)),
@@ -37,8 +43,8 @@ urlpatterns = [
     ),
     path(
         "fines/",
-        FineListAPIView.as_view(),
-        name="fine-list",
+        FineListCreateAPIView.as_view(),
+        name="fine-list-create",
     ),
     path(
         "fines/payments/",

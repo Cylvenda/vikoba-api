@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fine Issued</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #f4f6f9; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #333333; }
+        .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+        .header { background: linear-gradient(135deg, #c2410c, #ea580c); padding: 32px; text-align: center; color: #ffffff; }
+        .header h1 { margin: 0; font-size: 24px; letter-spacing: 1px; }
+        .header p { margin: 8px 0 0; opacity: 0.9; }
+        .content { padding: 32px; }
+        .content h2 { margin-top: 0; font-size: 22px; }
+        .content p { line-height: 1.6; margin: 14px 0; }
+        .alert-box { background: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #ea580c; border-radius: 10px; padding: 18px 20px; margin: 22px 0; }
+        .alert-box p { margin: 0; }
+        .meta-table { width: 100%; border-collapse: collapse; margin: 22px 0; }
+        .meta-table td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+        .meta-table td:first-child { font-weight: 600; color: #555; width: 40%; }
+        .amount { font-size: 28px; font-weight: 800; color: #c2410c; }
+        .button-wrap { text-align: center; margin: 28px 0; }
+        .button { display: inline-block; padding: 14px 28px; background: #c2410c; color: #ffffff !important; text-decoration: none; border-radius: 999px; font-weight: 700; }
+        .footer { padding: 20px 32px 28px; font-size: 13px; color: #777777; border-top: 1px solid #eeeeee; }
+        @media (max-width: 600px) { .content, .header, .footer { padding-left: 20px; padding-right: 20px; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ site_name }}</h1>
+            <p>Fine Notification</p>
+        </div>
+
+        <div class="content">
+            <h2>A fine has been issued to you</h2>
+
+            <p>Hello <strong>{{ member_name }}</strong>,</p>
+            <p>
+                A penalty has been recorded against your account in the group
+                <strong>{{ group_name }}</strong>. Please review the details below and
+                settle the balance before the due date.
+            </p>
+
+            <div class="alert-box">
+                <p class="amount">TZS {{ amount }}</p>
+                <p style="margin-top: 8px; color: #555;">Due by <strong>{{ due_date }}</strong></p>
+            </div>
+
+            <table class="meta-table">
+                <tr><td>Group</td><td>{{ group_name }}</td></tr>
+                <tr><td>Category</td><td>{{ category_name }}</td></tr>
+                <tr><td>Reason</td><td>{{ reason }}</td></tr>
+                <tr><td>Issued by</td><td>{{ issued_by }}</td></tr>
+                <tr><td>Issued on</td><td>{{ issued_at }}</td></tr>
+                {% if note %}
+                <tr><td>Note</td><td>{{ note }}</td></tr>
+                {% endif %}
+            </table>
+
+            <p>Log in to your account to view the full details and record a payment once settled.</p>
+
+            <div class="button-wrap">
+                <a href="{{ login_url }}" class="button">View Fine Details</a>
+            </div>
+
+            <p>If you believe this fine was issued in error, please contact your group administrator.</p>
+
+            <p>Regards,<br><strong>{{ site_name }} Team</strong></p>
+        </div>
+
+        <div class="footer">
+            &copy; {{ site_name }}<br>
+            Organized &bull; Private &bull; Reliable
+        </div>
+    </div>
+</body>
+</html>

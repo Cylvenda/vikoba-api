@@ -323,6 +323,41 @@ class LoanRepayment(models.Model):
         ordering = ["-created_at"]
 
 
+class FineCategory(models.Model):
+    """Leader-defined fine type templates (like LoanProduct for loans)."""
+
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    group = models.ForeignKey(
+        "groups.Group",
+        on_delete=models.CASCADE,
+        related_name="fine_categories",
+    )
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    default_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["group", "name"],
+                name="unique_fine_category_name_per_group",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.group.name})"
+
+
 class Fine(models.Model):
 
     class Status(models.TextChoices):
@@ -337,12 +372,28 @@ class Fine(models.Model):
     member = models.ForeignKey(
         "groups.GroupMembership",
         on_delete=models.CASCADE,
+        related_name="fines",
+    )
+    fine_category = models.ForeignKey(
+        FineCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="fines",
+    )
+    issued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="issued_fines",
     )
     reason = models.CharField(max_length=255)
     amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
     )
+    note = models.TextField(blank=True, null=True)
     status = models.CharField(
         max_length=20,
         choices=Status.choices,

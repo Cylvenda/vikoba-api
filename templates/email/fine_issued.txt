@@ -1,0 +1,18 @@
+A fine has been issued to you in {{ group_name }}.
+
+Member: {{ member_name }}
+Group: {{ group_name }}
+Category: {{ category_name }}
+Reason: {{ reason }}
+Amount: TZS {{ amount }}
+Due Date: {{ due_date }}
+Issued By: {{ issued_by }}
+Issued On: {{ issued_at }}
+{% if note %}Note: {{ note }}{% endif %}
+
+Please log in to view and settle this fine: {{ login_url }}
+
+If you believe this fine was issued in error, contact your group administrator.
+
+Regards,
+{{ site_name }} Team
