@@ -9,6 +9,25 @@ from apps.payments.models import Wallet, PaymentTransaction
 
 from apps.finance.models import Contribution, Loan, Fine
 
+class TransactionStatusAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, transaction_uuid):
+        try:
+            transaction = PaymentTransaction.objects.get(uuid=transaction_uuid)
+            return Response(
+                {
+                    "uuid": str(transaction.uuid),
+                    "status": transaction.status,
+                },
+                status=status.HTTP_200_OK
+            )
+        except PaymentTransaction.DoesNotExist:
+            return Response(
+                {"detail": "Transaction not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
 class InitiateMobileCollectionAPIView(APIView):
     permission_classes = [IsAuthenticated]
 

@@ -9,6 +9,12 @@ from apps.finance.models import Loan, LoanInstallment, Transaction
 from apps.finance.services.transaction_service import TransactionService
 from apps.finance.services.chart_of_accounts_service import ChartOfAccountsService
 from apps.finance.services.ledger_service import LedgerService
+from apps.finance.services.loan_notification_service import (
+    notify_loan_requested,
+    notify_loan_approved,
+    notify_loan_disbursed,
+    notify_loan_rejected,
+)
 
 
 class LoanService:
@@ -133,6 +139,8 @@ class LoanService:
             status=Loan.Status.PENDING,
         )
 
+        transaction.on_commit(lambda: notify_loan_requested(loan))
+
         return loan
 
     @staticmethod
@@ -147,6 +155,8 @@ class LoanService:
         loan.approved_at = timezone.now()
 
         loan.save(update_fields=["status", "approved_by", "approved_at"])
+
+        transaction.on_commit(lambda: notify_loan_approved(loan))
 
         return loan
 
@@ -184,6 +194,8 @@ class LoanService:
             narration="Loan disbursement",
         )
 
+        transaction.on_commit(lambda: notify_loan_disbursed(loan))
+
         return loan
 
     @staticmethod
@@ -196,5 +208,7 @@ class LoanService:
         loan.approved_at = None
         loan.disbursed_at = None
         loan.save(update_fields=["status", "approved_at", "disbursed_at"])
+
+        transaction.on_commit(lambda: notify_loan_rejected(loan))
 
         return loan

@@ -1,0 +1,12 @@
+Hi {{ recipient_name }},
+
+A loan request for TZS {{ loan_amount }} has been submitted by {{ borrower_name }} in the {{ group_name }} group.
+
+Purpose: {{ loan_purpose }}
+
+The request is currently PENDING and is awaiting approval by the Chairperson or Secretary.
+
+You can visit your dashboard here: {{ login_url }}
+
+Best regards,
+The {{ site_name }} Team

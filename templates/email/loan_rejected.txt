@@ -1,0 +1,8 @@
+Hi {{ recipient_name }},
+
+This is a notification that the loan request from {{ borrower_name }} for TZS {{ loan_amount }} in the {{ group_name }} group has been REJECTED.
+
+You can visit your dashboard here: {{ login_url }}
+
+Best regards,
+The {{ site_name }} Team

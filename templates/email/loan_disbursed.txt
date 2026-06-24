@@ -1,0 +1,10 @@
+Hi {{ recipient_name }},
+
+The loan of TZS {{ loan_amount }} for {{ borrower_name }} in the {{ group_name }} group has been DISBURSED!
+
+The loan is now ACTIVE, and the repayment schedule has been generated automatically.
+
+Please log in to your dashboard here: {{ login_url }}
+
+Best regards,
+The {{ site_name }} Team

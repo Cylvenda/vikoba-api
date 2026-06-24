@@ -1,0 +1,10 @@
+Hi {{ recipient_name }},
+
+The loan request from {{ borrower_name }} for TZS {{ loan_amount }} in the {{ group_name }} group has been APPROVED.
+
+The Treasurer will now process the disbursement of funds.
+
+You can check your dashboard here: {{ login_url }}
+
+Best regards,
+The {{ site_name }} Team

@@ -5,6 +5,7 @@ from apps.finance.models import Contribution, Transaction
 from apps.finance.services.transaction_service import TransactionService
 from apps.finance.services.chart_of_accounts_service import ChartOfAccountsService
 from apps.finance.services.ledger_service import LedgerService
+from apps.finance.services.finance_notification_service import notify_contribution_recorded
 
 class ContributionService:
 
@@ -52,6 +53,7 @@ class ContributionService:
                 amount=amount,
                 narration="Member contribution",
             )
+            transaction.on_commit(lambda: notify_contribution_recorded(contribution))
 
         return contribution
 
@@ -81,5 +83,7 @@ class ContributionService:
             amount=contribution.amount,
             narration="Member contribution via Mobile Money",
         )
+
+        transaction.on_commit(lambda: notify_contribution_recorded(contribution))
 
         return contribution

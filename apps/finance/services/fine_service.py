@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.finance.models import Fine, FineCategory, FinePayment, Transaction
 from apps.finance.services.transaction_service import TransactionService
+from apps.finance.services.finance_notification_service import notify_fine_paid
 
 logger = logging.getLogger(__name__)
 
@@ -147,5 +148,7 @@ class FineService:
         if total_paid >= fine.amount:
             fine.status = Fine.Status.PAID
             fine.save(update_fields=["status"])
+
+        transaction.on_commit(lambda: notify_fine_paid(fine, amount))
 
         return payment

@@ -1,0 +1,15 @@
+Hi {{ recipient_name }},
+
+This is a friendly reminder that an installment for your loan in the {{ group_name }} group is due today.
+
+Installment details:
+- Installment Number: {{ installment_number }}
+- Amount Due: TZS {{ amount_due }}
+- Due Date: {{ due_date }}
+
+Please ensure you make your payment on time to avoid any late fees.
+
+You can visit your dashboard here: {{ login_url }}
+
+Best regards,
+The {{ site_name }} Team

@@ -1,0 +1,10 @@
+Hi {{ member_name }},
+
+A savings contribution of TZS {{ amount }} has been successfully recorded in your account for the {{ group_name }} group.
+
+Thank you for growing your savings!
+
+You can visit your dashboard here: {{ login_url }}
+
+Best regards,
+The {{ site_name }} Team

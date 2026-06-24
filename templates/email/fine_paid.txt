@@ -1,0 +1,10 @@
+Hi {{ member_name }},
+
+Your payment of TZS {{ amount }} for your fine ({{ reason }}) in the {{ group_name }} group has been received and recorded.
+
+Thank you for clearing your penalty!
+
+You can visit your dashboard here: {{ login_url }}
+
+Best regards,
+The {{ site_name }} Team

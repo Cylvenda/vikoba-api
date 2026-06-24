@@ -71,19 +71,6 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id"]
 
-
-class GroupUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Group
-        fields = [
-            "name",
-            "description",
-            "visibility",
-            "max_concurrent_loans",
-            "default_late_fee_amount",
-            "is_active",
-        ]
-
     def create(self, validated_data):
         request = self.context["request"]
 
@@ -98,6 +85,19 @@ class GroupUpdateSerializer(serializers.ModelSerializer):
         )
 
         return group
+
+
+class GroupUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = [
+            "name",
+            "description",
+            "visibility",
+            "max_concurrent_loans",
+            "default_late_fee_amount",
+            "is_active",
+        ]
 
 
 class AddGroupMemberSerializer(serializers.Serializer):
