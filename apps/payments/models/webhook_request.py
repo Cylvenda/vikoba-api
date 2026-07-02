@@ -8,6 +8,7 @@ class WebhookEvent(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     provider = models.ForeignKey(PaymentProvider, on_delete=models.PROTECT)
     event_type = models.CharField(max_length=100)
+    event_key = models.CharField(max_length=64, unique=True, null=True, blank=True)
     payload = models.JSONField()
     signature = models.TextField(blank=True)
     processed = models.BooleanField(default=False)

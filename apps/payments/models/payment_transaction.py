@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 import uuid
 from . import Wallet
 
@@ -23,6 +24,7 @@ class PaymentTransaction(models.Model):
 
     class TransactionPurpose(models.TextChoices):
         CONTRIBUTION = "CONTRIBUTION"
+        LOAN_DISBURSEMENT = "LOAN_DISBURSEMENT"
         LOAN_REPAYMENT = "LOAN_REPAYMENT"
         PENALTY_PAYMENT = "PENALTY_PAYMENT"
         MEMBERSHIP_FEE = "MEMBERSHIP_FEE"
@@ -53,5 +55,26 @@ class PaymentTransaction(models.Model):
         on_delete=models.PROTECT,
     )
     metadata = models.JSONField(default=dict)
+    target_uuid = models.UUIDField(null=True, blank=True, db_index=True)
+    initiated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        related_name="payment_transactions",
+        on_delete=models.SET_NULL,
+    )
     initiated_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["transaction_type", "purpose", "target_uuid"],
+                condition=models.Q(
+                    transaction_type="PAYOUT",
+                    purpose="LOAN_DISBURSEMENT",
+                    status__in=["PENDING", "PROCESSING", "SUCCESS"],
+                ),
+                name="unique_active_loan_payout",
+            )
+        ]

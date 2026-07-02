@@ -17,3 +17,11 @@ class Wallet(models.Model):
     available_balance = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     reserved_balance = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     is_active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["wallet_type", "owner_uuid"],
+                name="unique_wallet_type_owner",
+            )
+        ]

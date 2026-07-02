@@ -113,6 +113,10 @@ Relevant settings include:
 - `DEV_ALLOW_ALL_HOSTS`
 - `CORS_ALLOWED_ORIGINS`
 - `CSRF_TRUSTED_ORIGINS`
+- `CLICKPESA_CLIENT_ID`
+- `CLICKPESA_API_KEY`
+- `CLICKPESA_CHECKSUM_KEY`
+- `CLICKPESA_SANDBOX`
 
 If these are not configured, Djoser activation emails will not work end-to-end.
 If the LiveKit variables are not configured, meeting join requests will return a
@@ -123,6 +127,26 @@ For development on a shared Wi-Fi or LAN:
 - `DEV_ALLOW_ALL_HOSTS=True` lets Django accept requests from changing local IPs.
 - If your frontend talks to Django directly from another origin, add that origin to
   `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`.
+
+## ClickPesa Payments And Loan Payouts
+
+Collections and loan payouts use the ClickPesa SDK. Keep
+`CLICKPESA_SANDBOX=True` while testing. Before enabling real-money payouts:
+
+See the complete [ClickPesa Payment Gateway Guide](docs/PAYMENT_GATEWAY.md)
+for architecture, API flows, wallet behavior, testing, and troubleshooting.
+
+1. Add the production client ID, API key, and checksum key to the deployment
+   environment.
+2. Set `CLICKPESA_SANDBOX=False`.
+3. Configure the application webhook in the ClickPesa dashboard as:
+   `https://<backend-domain>/api/payments/webhook/clickpesa/`
+4. Apply migrations with `python manage.py migrate`.
+5. Make a small controlled collection and payout before enabling treasurers.
+
+The loan remains approved while a payout is pending. It becomes active only
+after ClickPesa reports `SUCCESS`. Failed or reversed payouts restore the
+reserved group wallet funds.
 
 ## Authentication
 

@@ -1,0 +1,14 @@
+{{ event_title }}
+
+Hi {{ recipient_name }},
+
+{{ event_message }}
+
+Group: {{ group_name }}
+Amount: {{ currency }} {{ amount }}
+Reference: {{ reference }}
+{% if detail %}Details: {{ detail }}{% endif %}
+
+View the group wallet: {{ action_url }}
+
+{{ site_name }} Team

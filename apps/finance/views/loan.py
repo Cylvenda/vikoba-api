@@ -156,27 +156,15 @@ class DisburseLoanAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, loan_uuid):
-        loan = get_object_or_404(
-            Loan.objects.select_related("group", "loan_product").prefetch_related("installments"),
-            uuid=loan_uuid,
+        return Response(
+            {
+                "detail": (
+                    "Direct disbursement is disabled. Preview and confirm the "
+                    "ClickPesa payout from the loan payment page."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
         )
-
-        is_group_treasurer(request.user, loan.group)
-
-        if loan.status != Loan.Status.APPROVED:
-            return Response(
-                {"detail": "Only approved loans can be disbursed."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        loan = LoanService.disburse_loan(
-            loan=loan,
-            disbursed_by=request.user,
-        )
-
-        serializer = LoanSerializer(loan)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class RejectLoanAPIView(APIView):

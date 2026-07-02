@@ -105,6 +105,7 @@ class Loan(models.Model):
         PENDING = "PENDING", "Pending"
         APPROVED = "APPROVED", "Approved"
         REJECTED = "REJECTED", "Rejected"
+        PAYOUT_REVERSED = "PAYOUT_REVERSED", "Payout Reversed"
         ACTIVE = "ACTIVE", "Active"
         PAID_OFF = "PAID_OFF", "Paid Off"
         OVERDUE = "OVERDUE", "Overdue"

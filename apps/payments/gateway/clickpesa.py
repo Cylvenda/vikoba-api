@@ -1,10 +1,15 @@
-from clickpesa import ClickPesa
+from clickpesa import ClickPesa, WebhookValidator
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 
 
 class ClickPesaGateway:
 
     def _client(self):
+        if not settings.CLICKPESA_CLIENT_ID or not settings.CLICKPESA_API_KEY:
+            raise ImproperlyConfigured(
+                "ClickPesa credentials are not configured."
+            )
         checksum_key = settings.CLICKPESA_CHECKSUM_KEY or None
         return ClickPesa(
             client_id=settings.CLICKPESA_CLIENT_ID,
@@ -26,41 +31,44 @@ class ClickPesaGateway:
                 order_id=reference,
             )
 
-    def payout(self, amount, phone, reference):
-        """Send a mobile money payout."""
+    def preview_payout(self, amount, phone, reference):
+        """Validate a mobile-money payout and return fees and balance."""
         with self._client() as client:
-            return client.payouts.create_mobile_money(
-                amount=str(amount),
+            return client.payouts.preview_mobile_money(
+                amount=float(amount),
                 phone=phone,
                 order_id=reference,
             )
 
-    def check_status(self, reference):
+    def payout(self, amount, phone, reference):
+        """Send a mobile money payout."""
+        with self._client() as client:
+            return client.payouts.create_mobile_money(
+                amount=float(amount),
+                phone=phone,
+                order_id=reference,
+            )
+
+    def check_collection_status(self, reference):
         """Check the status of a payment by order reference."""
         with self._client() as client:
             return client.payments.get_status(reference)
 
+    def check_payout_status(self, reference):
+        """Check the status of a payout by order reference."""
+        with self._client() as client:
+            return client.payouts.get_status(reference)
+
     def verify_webhook(self, payload, signature):
-        import hashlib
-        import hmac
-        import json
-        
         checksum_key = settings.CLICKPESA_CHECKSUM_KEY or ""
         if not checksum_key:
-            return True # Skip verification if no key is set (e.g. local dev)
+            if settings.DEBUG:
+                return True
+            raise ImproperlyConfigured(
+                "CLICKPESA_CHECKSUM_KEY is required outside DEBUG mode."
+            )
 
-        # Reconstruct payload string if needed, or if it expects raw bytes, 
-        # assume payload is a dict here, so dump it or use raw request body if available.
-        # This implementation depends heavily on ClickPesa's specific signature algorithm.
-        # Generally it's an HMAC SHA256 of the payload.
-        message = json.dumps(payload, separators=(',', ':')).encode('utf-8')
-        expected_signature = hmac.new(
-            checksum_key.encode('utf-8'),
-            message,
-            hashlib.sha256
-        ).hexdigest()
+        if not WebhookValidator.verify(payload, signature, checksum_key):
+            raise ValueError("Invalid ClickPesa webhook signature.")
 
-        if not hmac.compare_digest(expected_signature, signature):
-            raise ValueError("Invalid webhook signature")
-        
         return True

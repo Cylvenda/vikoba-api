@@ -216,6 +216,7 @@ class LoanService:
         *,
         loan,
         disbursed_by,
+        confirmed_payout=False,
     ):
         if loan.status == Loan.Status.ACTIVE:
             raise ValidationError(
@@ -227,13 +228,16 @@ class LoanService:
                 {"detail": "Only approved loans can be disbursed."}
             )
 
-        if not loan.borrower.is_active or not loan.borrower.is_verified:
+        if (
+            not confirmed_payout
+            and (not loan.borrower.is_active or not loan.borrower.is_verified)
+        ):
             raise ValidationError(
                 {"detail": "The borrower is no longer an active, verified member of this group."}
             )
 
         available_balance = WalletService.get_group_balance(loan.group)
-        if available_balance < loan.principal_amount:
+        if not confirmed_payout and available_balance < loan.principal_amount:
             raise ValidationError(
                 {
                     "detail": (
@@ -274,6 +278,22 @@ class LoanService:
         WalletService.rebuild_group_member_wallets(loan.group)
         transaction.on_commit(lambda: notify_loan_disbursed(loan))
 
+        return loan
+
+    @staticmethod
+    @transaction.atomic
+    def reverse_disbursement(*, loan):
+        if loan.status == Loan.Status.PAYOUT_REVERSED:
+            return loan
+        if loan.status != Loan.Status.ACTIVE:
+            raise ValidationError(
+                {"detail": "Only an active loan payout can be reversed."}
+            )
+
+        loan.status = Loan.Status.PAYOUT_REVERSED
+        loan.disbursed_at = None
+        loan.save(update_fields=["status", "disbursed_at"])
+        WalletService.rebuild_group_member_wallets(loan.group)
         return loan
 
     @staticmethod

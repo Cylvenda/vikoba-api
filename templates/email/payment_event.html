@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ event_title }}</title>
+</head>
+<body style="margin:0;padding:0;background:#f7f3ec;color:#2a211c;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f7f3ec;padding:36px 16px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(42,33,28,.09);">
+                    <tr>
+                        <td style="padding:32px;background:{{ accent_color }};color:#ffffff;text-align:center;">
+                            <div style="font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;opacity:.82;">{{ site_name }}</div>
+                            <h1 style="margin:10px 0 0;font-size:26px;line-height:1.25;">{{ event_title }}</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:32px;">
+                            <p style="margin:0 0 14px;font-size:16px;">Hi {{ recipient_name }},</p>
+                            <p style="margin:0 0 22px;line-height:1.65;color:#5f5148;">{{ event_message }}</p>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;">
+                                <tr>
+                                    <td style="padding:22px;">
+                                        <div style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#9a3412;">{{ group_name }}</div>
+                                        <div style="margin-top:8px;font-size:30px;font-weight:800;color:{{ accent_color }};">{{ currency }} {{ amount }}</div>
+                                        <div style="margin-top:10px;font-size:13px;color:#7c6a5f;">Reference: {{ reference }}</div>
+                                    </td>
+                                </tr>
+                            </table>
+                            {% if detail %}
+                            <p style="margin:18px 0 0;padding:12px 14px;border-radius:10px;background:#fef2f2;color:#991b1b;font-size:14px;">{{ detail }}</p>
+                            {% endif %}
+                            <div style="margin:28px 0 8px;text-align:center;">
+                                <a href="{{ action_url }}" style="display:inline-block;padding:13px 24px;border-radius:999px;background:#2a211c;color:#ffffff;text-decoration:none;font-weight:700;">View group wallet</a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:20px 32px 26px;border-top:1px solid #f1e6da;color:#7c6a5f;font-size:12px;">
+                            This is an automatic transaction notice from {{ site_name }}.
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

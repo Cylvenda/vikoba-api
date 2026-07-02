@@ -9,7 +9,11 @@ class ClickPesaWebhookAPIView(APIView):
 
     def post(self, request):
         payload = request.data
-        signature = request.headers.get("X-Signature") or ""
+        signature = (
+            request.headers.get("X-ClickPesa-Signature")
+            or request.headers.get("X-Signature")
+            or ""
+        )
 
         try:
             WebhookService.process_clickpesa_event(payload, signature)
