@@ -90,6 +90,10 @@ class LoanSerializer(serializers.ModelSerializer):
         slug_field="uuid",
         read_only=True,
     )
+    borrower_user_id = serializers.UUIDField(
+        source="borrower.user.uuid",
+        read_only=True,
+    )
     borrower_name = serializers.CharField(
         source="borrower.user.get_full_name",
         read_only=True,
@@ -204,6 +208,7 @@ class LoanSerializer(serializers.ModelSerializer):
             "duration_type",
             "duration_count",
             "borrower",
+            "borrower_user_id",
             "borrower_name",
             "interest_rate",
             "purpose",

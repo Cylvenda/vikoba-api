@@ -21,6 +21,7 @@ from apps.finance.views.repayment import (
     LoanRepaymentAPIView,
 )
 from apps.finance.views.snapshot import FinanceSnapshotAPIView
+from apps.finance.views.wallet import GroupWalletReportAPIView
 
 router = DefaultRouter()
 router.register(
@@ -90,5 +91,10 @@ urlpatterns = [
         "groups/<uuid:group_uuid>/snapshot/",
         FinanceSnapshotAPIView.as_view(),
         name="finance-snapshot",
+    ),
+    path(
+        "groups/<uuid:group_uuid>/wallet-report/",
+        GroupWalletReportAPIView.as_view(),
+        name="group-wallet-report",
     ),
 ]

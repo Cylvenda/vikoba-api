@@ -5,6 +5,7 @@ from apps.finance.models import Contribution, Transaction
 from apps.finance.services.transaction_service import TransactionService
 from apps.finance.services.chart_of_accounts_service import ChartOfAccountsService
 from apps.finance.services.ledger_service import LedgerService
+from apps.finance.services.wallet_service import WalletService
 from apps.finance.services.finance_notification_service import notify_contribution_recorded
 
 class ContributionService:
@@ -45,6 +46,7 @@ class ContributionService:
                 reference_id=contribution.uuid,
                 description="Member contribution",
                 created_by=received_by,
+                performed_by=member.user.full_name or member.user.email,
             )
             LedgerService.create_entry(
                 transaction=finance_transaction,
@@ -53,6 +55,8 @@ class ContributionService:
                 amount=amount,
                 narration="Member contribution",
             )
+            WalletService.rebuild_group_wallet(group)
+            WalletService.rebuild_group_member_wallets(group)
             transaction.on_commit(lambda: notify_contribution_recorded(contribution))
 
         return contribution
@@ -74,6 +78,7 @@ class ContributionService:
             reference_id=contribution.uuid,
             description="Member contribution via Mobile Money",
             created_by=contribution.received_by,
+            performed_by=contribution.member.user.full_name or contribution.member.user.email,
         )
 
         LedgerService.create_entry(
@@ -84,6 +89,8 @@ class ContributionService:
             narration="Member contribution via Mobile Money",
         )
 
+        WalletService.rebuild_group_wallet(contribution.group)
+        WalletService.rebuild_group_member_wallets(contribution.group)
         transaction.on_commit(lambda: notify_contribution_recorded(contribution))
 
         return contribution

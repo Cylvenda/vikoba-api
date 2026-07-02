@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from apps.finance.models import Fine, FineCategory, FinePayment
 from apps.finance.permissions import (
@@ -173,9 +174,12 @@ class FinePaymentListCreateAPIView(APIView):
 
         data = serializer.validated_data
         group = get_group_or_404(data["group_id"])
-        is_group_finance_manager(request.user, group)
+        is_group_member(request.user, group)
 
         fine = get_object_or_404(Fine, uuid=data["fine_id"], group=group)
+
+        if fine.member.user != request.user:
+            raise PermissionDenied("You can only pay your own fines.")
 
         payment = FineService.create_fine_payment(
             fine=fine,

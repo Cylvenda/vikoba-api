@@ -43,6 +43,7 @@ class GroupSerializer(serializers.ModelSerializer):
             "join_code",
             "description",
             "max_concurrent_loans",
+            "minimum_savings_for_loan",
             "default_late_fee_amount",
             "created_by",
             "is_active",
@@ -65,6 +66,7 @@ class GroupCreateSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "max_concurrent_loans",
+            "minimum_savings_for_loan",
             "default_late_fee_amount",
             "is_active",
             "visibility",
@@ -95,6 +97,7 @@ class GroupUpdateSerializer(serializers.ModelSerializer):
             "description",
             "visibility",
             "max_concurrent_loans",
+            "minimum_savings_for_loan",
             "default_late_fee_amount",
             "is_active",
         ]

@@ -12,6 +12,7 @@ class TransactionService:
         reference_id,
         description,
         created_by,
+        performed_by="",
     ):
 
         return Transaction.objects.create(
@@ -21,5 +22,6 @@ class TransactionService:
             amount=amount,
             reference_id=reference_id,
             description=description,
+            performed_by=performed_by,
             created_by=created_by,
         )

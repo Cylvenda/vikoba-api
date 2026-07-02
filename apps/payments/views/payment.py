@@ -57,7 +57,13 @@ class InitiateMobileCollectionAPIView(APIView):
             elif purpose == PaymentTransaction.TransactionPurpose.LOAN_REPAYMENT:
                 owner_uuid = Loan.objects.get(uuid=target_uuid).group.uuid
             elif purpose == PaymentTransaction.TransactionPurpose.PENALTY_PAYMENT:
-                owner_uuid = Fine.objects.get(uuid=target_uuid).group.uuid
+                fine = Fine.objects.get(uuid=target_uuid)
+                if fine.member.user != request.user:
+                    return Response(
+                        {"detail": "You can only pay your own fines."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                owner_uuid = fine.group.uuid
         except (Contribution.DoesNotExist, Loan.DoesNotExist, Fine.DoesNotExist):
             return Response(
                 {"detail": "Invalid target_uuid for the given purpose."},

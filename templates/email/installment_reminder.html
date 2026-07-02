@@ -1,19 +1,119 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installment Reminder</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f7f3ec;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: #2a211c;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+        .header {
+            background: linear-gradient(135deg, #c2410c, #ea580c);
+            padding: 32px;
+            text-align: center;
+            color: #ffffff;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 1px;
+        }
+        .header p {
+            margin: 8px 0 0;
+            color: rgba(255, 255, 255, 0.86);
+        }
+        .content {
+            padding: 32px;
+        }
+        .content h2 {
+            margin-top: 0;
+            font-size: 22px;
+        }
+        .content p {
+            line-height: 1.6;
+            margin: 14px 0;
+        }
+        .highlight-box {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            border-left: 4px solid #c2410c;
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin: 22px 0;
+        }
+        .button-wrap {
+            text-align: center;
+            margin: 28px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 24px;
+            background: #c2410c;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 999px;
+            font-weight: 700;
+        }
+        .footer {
+            padding: 20px 32px 28px;
+            font-size: 13px;
+            color: #7c6a5f;
+            border-top: 1px solid #f1e6da;
+        }
+        @media (max-width: 600px) {
+            .content,
+            .header,
+            .footer {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+        }
+    </style>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <p>Hi {{ recipient_name }},</p>
-    <p>This is a friendly reminder that an installment for your loan in the <strong>{{ group_name }}</strong> group is due today.</p>
-    <p><strong>Installment details:</strong></p>
-    <ul>
-        <li><strong>Installment Number:</strong> {{ installment_number }}</li>
-        <li><strong>Amount Due:</strong> TZS {{ amount_due }}</li>
-        <li><strong>Due Date:</strong> {{ due_date }}</li>
-    </ul>
-    <p>Please ensure you make your payment on time to avoid any late fees.</p>
-    <p><a href="{{ login_url }}" style="display: inline-block; padding: 10px 20px; background-color: #0f172a; color: white; text-decoration: none; border-radius: 5px;">Go to Dashboard</a></p>
-    <p>Best regards,<br>The {{ site_name }} Team</p>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ site_name }}</h1>
+            <p>Loan Reminder</p>
+        </div>
+        <div class="content">
+            <h2>Your installment is due today</h2>
+            <p>Hi {{ recipient_name }},</p>
+            <p>
+                This is a reminder that an installment for your loan in the
+                <strong>{{ group_name }}</strong> group is due today.
+            </p>
+            <div class="highlight-box">
+                <p style="margin: 0 0 8px;"><strong>Installment Number:</strong> {{ installment_number }}</p>
+                <p style="margin: 0 0 8px;"><strong>Amount Due:</strong> TZS {{ amount_due }}</p>
+                <p style="margin: 0;"><strong>Due Date:</strong> {{ due_date }}</p>
+            </div>
+            <p>Please make your payment on time to avoid late fees.</p>
+            <div class="button-wrap">
+                <a href="{{ login_url }}" class="button">Go to Dashboard</a>
+            </div>
+            <p>
+                Best regards,<br>
+                <strong>{{ site_name }} Team</strong>
+            </p>
+        </div>
+        <div class="footer">
+            &copy; {{ site_name }}<br>
+            Organized • Private • Reliable
+        </div>
+    </div>
 </body>
 </html>

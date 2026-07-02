@@ -10,6 +10,7 @@ from django.utils import timezone
 from apps.finance.models import Fine, FineCategory, FinePayment, Transaction
 from apps.finance.services.transaction_service import TransactionService
 from apps.finance.services.finance_notification_service import notify_fine_paid
+from apps.finance.services.wallet_service import WalletService
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +20,16 @@ def _send_fine_issued_email(fine: Fine) -> None:
     try:
         member_user = fine.member.user
         category_name = fine.fine_category.name if fine.fine_category else "General Fine"
-        issued_by_name = fine.issued_by.get_full_name() if fine.issued_by else "Group Admin"
+        issued_by_name = (
+            getattr(fine.issued_by, "full_name", "") or "Group Admin"
+            if fine.issued_by
+            else "Group Admin"
+        )
         login_url = f"{getattr(settings, 'FRONTEND_URL', '').rstrip('/')}/login"
 
         context = {
             "site_name": "Vikoba",
-            "member_name": member_user.get_full_name() or member_user.email,
+            "member_name": getattr(member_user, "full_name", "") or member_user.email,
             "group_name": fine.group.name,
             "category_name": category_name,
             "reason": fine.reason,
@@ -99,6 +104,8 @@ class FineService:
         # Email notification
         _send_fine_issued_email(fine)
 
+        WalletService.rebuild_member_wallet(membership)
+
         return fine
 
     @staticmethod
@@ -134,6 +141,7 @@ class FineService:
             reference_id=payment.uuid,
             description="Fine payment",
             created_by=received_by,
+            performed_by=fine.member.user.full_name or fine.member.user.email,
         )
 
         LedgerService.create_entry(
@@ -149,6 +157,7 @@ class FineService:
             fine.status = Fine.Status.PAID
             fine.save(update_fields=["status"])
 
+        WalletService.rebuild_group_member_wallets(fine.group)
         transaction.on_commit(lambda: notify_fine_paid(fine, amount))
 
         return payment

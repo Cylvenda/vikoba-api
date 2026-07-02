@@ -10,6 +10,7 @@ from apps.finance.services.loan_service import LoanService
 from apps.finance.services.transaction_service import TransactionService
 from apps.finance.services.chart_of_accounts_service import ChartOfAccountsService
 from apps.finance.services.ledger_service import LedgerService
+from apps.finance.services.wallet_service import WalletService
 
 
 class RepaymentService:
@@ -143,6 +144,7 @@ class RepaymentService:
                     reference_id=payment.uuid,
                     description="Loan repayment",
                     created_by=received_by,
+                    performed_by=loan.borrower.user.full_name or loan.borrower.user.email,
                 )
 
                 LedgerService.create_entry(
@@ -184,6 +186,7 @@ class RepaymentService:
                     reference_id=payment.uuid,
                     description="Late fee payment",
                     created_by=received_by,
+                    performed_by=loan.borrower.user.full_name or loan.borrower.user.email,
                 )
 
                 LedgerService.create_entry(
@@ -210,6 +213,7 @@ class RepaymentService:
             loan.remaining_balance = Decimal("0.00")
 
         RepaymentService._refresh_loan_status(loan)
+        WalletService.rebuild_group_member_wallets(loan.group)
 
         return created_payments
 
@@ -250,5 +254,6 @@ class RepaymentService:
                 updated_count += 1
 
             loan.save(update_fields=["status", "amount_paid", "remaining_balance"])
+            WalletService.rebuild_member_wallet(loan.borrower)
 
         return updated_count

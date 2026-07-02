@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 from apps.payments.gateway.clickpesa import ClickPesaGateway
 from apps.payments.models import PaymentTransaction
 from apps.payments.services.payment_dispatcher import PaymentDispatcher
@@ -69,7 +70,8 @@ class CollectionService:
             return payment_transaction
 
         payment_transaction.status = PaymentTransaction.Status.SUCCESS
-        payment_transaction.save(update_fields=["status"])
+        payment_transaction.completed_at = payment_transaction.completed_at or timezone.now()
+        payment_transaction.save(update_fields=["status", "completed_at"])
 
         wallet = payment_transaction.destination_wallet
         if wallet:

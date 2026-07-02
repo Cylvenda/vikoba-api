@@ -1,14 +1,17 @@
 from decimal import Decimal
-from datetime import timedelta
+from calendar import monthrange
+from datetime import timedelta, date
 
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
-from apps.finance.models import Loan, LoanInstallment, Transaction
+from apps.finance.models import Loan, LoanInstallment, LoanProduct, Transaction, Contribution
 from apps.finance.services.transaction_service import TransactionService
 from apps.finance.services.chart_of_accounts_service import ChartOfAccountsService
 from apps.finance.services.ledger_service import LedgerService
+from apps.finance.services.wallet_service import WalletService
 from apps.finance.services.loan_notification_service import (
     notify_loan_requested,
     notify_loan_approved,
@@ -18,6 +21,17 @@ from apps.finance.services.loan_notification_service import (
 
 
 class LoanService:
+    @staticmethod
+    def _get_verified_savings_balance(*, group, borrower) -> Decimal:
+        return (
+            Contribution.objects.filter(
+                group=group,
+                member=borrower,
+                status=Contribution.Status.VERIFIED,
+            ).aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
     @staticmethod
     def _get_due_date_from_product(loan_product):
         duration_type = loan_product.duration_type
@@ -29,7 +43,7 @@ class LoanService:
         if duration_type == loan_product.DurationType.WEEKS:
             return timezone.now().date() + timedelta(weeks=duration_count)
 
-        return timezone.now().date() + timedelta(days=duration_count * 30)
+        return LoanService._add_months(timezone.now().date(), duration_count)
 
     @staticmethod
     def _calculate_interest_amount(principal_amount, interest_rate):
@@ -45,7 +59,15 @@ class LoanService:
         if loan_product.duration_type == loan_product.DurationType.WEEKS:
             return timedelta(weeks=1)
 
-        return timedelta(days=30)
+        return "MONTHS"
+
+    @staticmethod
+    def _add_months(start_date: date, months: int) -> date:
+        month = start_date.month - 1 + months
+        year = start_date.year + month // 12
+        month = month % 12 + 1
+        day = min(start_date.day, monthrange(year, month)[1])
+        return date(year, month, day)
 
     @staticmethod
     def _generate_installments(loan):
@@ -53,7 +75,6 @@ class LoanService:
             return loan.installments.all()
 
         installment_count = max(1, loan.loan_product.duration_count)
-        step = LoanService._get_installment_step(loan.loan_product)
         base_amount = (loan.total_repayment_amount / Decimal(installment_count)).quantize(
             Decimal("0.01")
         )
@@ -68,7 +89,12 @@ class LoanService:
                 amount_due = base_amount
 
             running_total += amount_due
-            due_date = start_date + (step * installment_number)
+
+            if loan.loan_product.duration_type == LoanProduct.DurationType.MONTHS:
+                due_date = LoanService._add_months(start_date, installment_number)
+            else:
+                step = LoanService._get_installment_step(loan.loan_product)
+                due_date = start_date + (step * installment_number)
 
             installments.append(
                 LoanInstallment.objects.create(
@@ -123,6 +149,30 @@ class LoanService:
             interest_rate,
         )
         total_repayment_amount = principal_amount + interest_amount
+        verified_savings_balance = LoanService._get_verified_savings_balance(
+            group=group,
+            borrower=borrower,
+        )
+
+        if verified_savings_balance < group.minimum_savings_for_loan:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Your verified savings are below the minimum amount required to request a loan "
+                        f"for this group ({group.minimum_savings_for_loan})."
+                    )
+                }
+            )
+
+        if principal_amount > verified_savings_balance:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "The requested loan amount cannot exceed your verified savings balance "
+                        f"({verified_savings_balance})."
+                    )
+                }
+            )
 
         loan = Loan.objects.create(
             borrower=borrower,
@@ -167,6 +217,32 @@ class LoanService:
         loan,
         disbursed_by,
     ):
+        if loan.status == Loan.Status.ACTIVE:
+            raise ValidationError(
+                {"detail": "This loan has already been disbursed."}
+            )
+
+        if loan.status != Loan.Status.APPROVED:
+            raise ValidationError(
+                {"detail": "Only approved loans can be disbursed."}
+            )
+
+        if not loan.borrower.is_active or not loan.borrower.is_verified:
+            raise ValidationError(
+                {"detail": "The borrower is no longer an active, verified member of this group."}
+            )
+
+        available_balance = WalletService.get_group_balance(loan.group)
+        if available_balance < loan.principal_amount:
+            raise ValidationError(
+                {
+                    "detail": (
+                        f"Insufficient group funds. Available balance is "
+                        f"{available_balance}, but the loan principal is {loan.principal_amount}."
+                    )
+                }
+            )
+
         loan.status = Loan.Status.ACTIVE
         loan.disbursed_at = timezone.now()
         loan.amount_paid = Decimal("0.00")
@@ -184,6 +260,7 @@ class LoanService:
             reference_id=loan.uuid,
             description="Loan disbursement",
             created_by=disbursed_by,
+            performed_by=loan.borrower.user.full_name or loan.borrower.user.email,
         )
 
         LedgerService.create_entry(
@@ -194,6 +271,7 @@ class LoanService:
             narration="Loan disbursement",
         )
 
+        WalletService.rebuild_group_member_wallets(loan.group)
         transaction.on_commit(lambda: notify_loan_disbursed(loan))
 
         return loan

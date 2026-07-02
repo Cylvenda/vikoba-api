@@ -2,18 +2,19 @@ from decimal import Decimal
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Sum, F
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 
 from apps.groups.models import Group
-from apps.finance.models import Contribution, Loan, Fine, FinePayment, Transaction, LedgerEntry
-from apps.finance.services.chart_of_accounts_service import ChartOfAccountsService
+from apps.finance.models import Contribution, Loan, Fine, Transaction
+from apps.finance.services.wallet_service import WalletService
 
 class FinanceSnapshotAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, group_uuid):
         group = get_object_or_404(Group, uuid=group_uuid)
+        wallet_report = WalletService.build_wallet_report(group)
         
         # Total Savings
         total_savings = Contribution.objects.filter(
@@ -33,22 +34,15 @@ class FinanceSnapshotAPIView(APIView):
         expected_interest = active_loans.aggregate(total=Sum('interest_amount'))['total'] or Decimal('0.00')
 
         # Unpaid Fines
-        total_fines = Fine.objects.filter(group=group).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        total_fine_payments = FinePayment.objects.filter(fine__group=group).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        unpaid_fines = total_fines - total_fine_payments
+        unpaid_fines = Fine.objects.filter(
+            group=group, status=Fine.Status.UNPAID
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-        # Available Cash
-        wallet_account = ChartOfAccountsService.get_group_wallet_account()
-        wallet_debits = LedgerEntry.objects.filter(
-            account=wallet_account, transaction__group=group
-        ).aggregate(total=Sum('debit'))['total'] or Decimal('0.00')
-        wallet_credits = LedgerEntry.objects.filter(
-            account=wallet_account, transaction__group=group
-        ).aggregate(total=Sum('credit'))['total'] or Decimal('0.00')
-        available_cash = wallet_debits - wallet_credits
+        group_wallet = WalletService.get_group_wallet(group)
+        available_cash = group_wallet.balance if group_wallet else Decimal('0.00')
 
         # Recent Activity
-        recent_txs = Transaction.objects.filter(group=group).select_related('created_by').order_by('-created_at')[:5]
+        recent_txs = Transaction.objects.filter(group=group).select_related('created_by').order_by('-created_at')[:50]
         recent_activity = [
             {
                 "id": str(tx.uuid),
@@ -56,7 +50,11 @@ class FinanceSnapshotAPIView(APIView):
                 "type": tx.transaction_type,
                 "amount": float(tx.amount),
                 "status": "completed",
-                "actor": tx.created_by.full_name if tx.created_by else "System",
+                "actor": tx.performed_by or (
+                    (getattr(tx.created_by, "full_name", "") or tx.created_by.email)
+                    if tx.created_by
+                    else "System"
+                ),
                 "happenedAt": tx.created_at.isoformat()
             }
             for tx in recent_txs
@@ -78,5 +76,7 @@ class FinanceSnapshotAPIView(APIView):
             "unpaidFines": float(unpaid_fines),
             "availableCash": float(available_cash),
             "monthlyCollections": float(monthly_collections),
-            "recentActivity": recent_activity
+            "recentActivity": recent_activity,
+            "groupWallet": wallet_report["groupWallet"],
+            "memberWallets": wallet_report["memberWallets"],
         })

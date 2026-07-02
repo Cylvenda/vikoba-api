@@ -443,6 +443,96 @@ class FinePayment(models.Model):
         ordering = ["-created_at"]
 
 
+class GroupWallet(models.Model):
+
+    group = models.OneToOneField(
+        "groups.Group",
+        on_delete=models.CASCADE,
+        related_name="finance_wallet",
+    )
+    balance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    total_verified_savings = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    total_fines_collected = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    total_loan_disbursed = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    total_loan_repayments = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["group__name"]
+
+    def __str__(self):
+        return f"{self.group.name} wallet"
+
+
+class MemberWallet(models.Model):
+
+    group = models.ForeignKey(
+        "groups.Group",
+        on_delete=models.CASCADE,
+        related_name="member_wallets",
+    )
+    member = models.OneToOneField(
+        "groups.GroupMembership",
+        on_delete=models.CASCADE,
+        related_name="finance_wallet",
+    )
+    savings_balance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    loan_outstanding = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    fine_outstanding = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    net_balance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["group__name", "member__joined_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["group", "member"],
+                name="unique_member_wallet_per_group_member",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.member.user} - {self.group.name} wallet"
+
+
 class Transaction(models.Model):
 
     class Direction(models.TextChoices):
@@ -481,6 +571,12 @@ class Transaction(models.Model):
     reference_id = models.UUIDField()
 
     description = models.TextField()
+
+    performed_by = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Name of the group member whose action this transaction records",
+    )
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

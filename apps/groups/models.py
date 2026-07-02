@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 import uuid
 from django.conf import settings
@@ -48,6 +50,11 @@ class Group(models.Model):
         default=Visibility.PRIVATE,
     )
     max_concurrent_loans = models.PositiveIntegerField(default=1)
+    minimum_savings_for_loan = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
     default_late_fee_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,

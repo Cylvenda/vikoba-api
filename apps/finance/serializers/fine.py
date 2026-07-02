@@ -43,9 +43,11 @@ class CreateFineCategorySerializer(serializers.ModelSerializer):
 class FineSerializer(serializers.ModelSerializer):
     group = serializers.SlugRelatedField(slug_field="uuid", read_only=True)
     member = serializers.SlugRelatedField(slug_field="uuid", read_only=True)
-    member_name = serializers.CharField(
-        source="member.user.get_full_name", read_only=True
+    member_user_id = serializers.UUIDField(
+        source="member.user.uuid",
+        read_only=True,
     )
+    member_name = serializers.SerializerMethodField()
     member_email = serializers.CharField(
         source="member.user.email", read_only=True
     )
@@ -55,9 +57,7 @@ class FineSerializer(serializers.ModelSerializer):
     fine_category_name = serializers.CharField(
         source="fine_category.name", read_only=True, allow_null=True
     )
-    issued_by_name = serializers.CharField(
-        source="issued_by.get_full_name", read_only=True, allow_null=True
-    )
+    issued_by_name = serializers.SerializerMethodField()
     total_paid = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
 
@@ -67,6 +67,7 @@ class FineSerializer(serializers.ModelSerializer):
             "uuid",
             "group",
             "member",
+            "member_user_id",
             "member_name",
             "member_email",
             "fine_category_uuid",
@@ -81,6 +82,20 @@ class FineSerializer(serializers.ModelSerializer):
             "total_paid",
             "balance",
         ]
+
+    def get_member_name(self, obj):
+        user = getattr(getattr(obj, "member", None), "user", None)
+        if not user:
+            return "Unknown member"
+        name = getattr(user, "full_name", "") or ""
+        return name.strip() or user.email or "Unknown member"
+
+    def get_issued_by_name(self, obj):
+        user = getattr(obj, "issued_by", None)
+        if not user:
+            return None
+        name = getattr(user, "full_name", "") or ""
+        return name.strip() or user.email or None
 
 
 class CreateFineSerializer(serializers.Serializer):

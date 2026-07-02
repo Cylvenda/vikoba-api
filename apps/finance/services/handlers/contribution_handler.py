@@ -1,4 +1,4 @@
-from finance.services.contribution_service import ContributionService
+from apps.finance.services.contribution_service import ContributionService
 
 
 class ContributionPaymentHandler:
