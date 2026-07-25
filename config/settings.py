@@ -46,7 +46,9 @@ SECRET_KEY = os.getenv(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool("DEBUG", True)
 
-ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
+ALLOWED_HOSTS = env_list(
+    "ALLOWED_HOSTS", ["localhost", "127.0.0.1", "vikoba-api.onrender.com"]
+)
 DEV_ALLOW_ALL_HOSTS = env_bool("DEV_ALLOW_ALL_HOSTS", DEBUG)
 
 if DEBUG and DEV_ALLOW_ALL_HOSTS:
