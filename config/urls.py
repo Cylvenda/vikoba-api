@@ -10,7 +10,7 @@ urlpatterns = [
     re_path(r"^api/auth/", include("djoser.urls.jwt")),
     # API DOCS ENDPOINTS
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    path("", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     # groups endpoints
     path("api/groups/", include("apps.groups.urls")),
     # groups endpoints
