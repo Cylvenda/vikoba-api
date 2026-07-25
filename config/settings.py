@@ -32,6 +32,10 @@ def env_list(name, default=None):
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+# The repository-root .env is the shared runtime configuration used by Compose.
+# The backend-local file remains a fallback for developers running this project
+# outside the repository root. Existing process environment values win.
+load_env_file(BASE_DIR.parent / ".env")
 load_env_file(BASE_DIR / ".env")
 
 # SECURITY WARNING: keep the secret key used in production secret!
@@ -89,7 +93,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.realtime",
     "apps.finance",
-    "apps.payments"
+    "apps.payments",
 ]
 
 MIDDLEWARE = [
@@ -127,12 +131,28 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+# Set USE_SQLITE=true for a file database or false for PostgreSQL. This explicit
+# switch avoids changing database engines merely because another URL is present.
+USE_SQLITE = env_bool("USE_SQLITE", default=True)
+
+if USE_SQLITE:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DB") or os.getenv("DB_NAME", "vikoba"),
+            "USER": os.getenv("POSTGRES_USER") or os.getenv("DB_USER", "postgres"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD") or os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
+    }
 
 
 # Password validation
@@ -170,6 +190,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

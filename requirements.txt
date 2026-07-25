@@ -18,6 +18,7 @@ djangorestframework_simplejwt==5.5.1
 djoser==2.3.3
 drf-spectacular==0.29.0
 frozenlist==1.8.0
+gunicorn==26.0.0
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
@@ -29,6 +30,7 @@ livekit-api==1.1.0
 livekit-protocol==1.1.8
 multidict==6.7.1
 oauthlib==3.3.1
+packaging==26.2
 pillow==12.1.1
 propcache==0.4.1
 protobuf==7.34.1
@@ -47,4 +49,5 @@ types-protobuf==7.34.1.20260503
 typing_extensions==4.15.0
 uritemplate==4.2.0
 urllib3==2.6.3
-yarl>=1.9.4
+whitenoise==6.12.0
+yarl==1.24.5
