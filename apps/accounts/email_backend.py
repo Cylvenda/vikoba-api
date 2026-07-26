@@ -36,7 +36,13 @@ class ResendEmailBackend(BaseEmailBackend):
             try:
                 self._send(message)
                 sent_count += 1
-            except (HTTPError, URLError, TimeoutError, ValueError) as error:
+            except HTTPError as error:
+                if not self.fail_silently:
+                    details = error.read().decode("utf-8", errors="replace")[:500]
+                    raise RuntimeError(
+                        f"Resend rejected email ({error.code}): {details}"
+                    ) from error
+            except (URLError, TimeoutError, ValueError) as error:
                 if not self.fail_silently:
                     raise RuntimeError(f"Resend could not send email: {error}") from error
         return sent_count

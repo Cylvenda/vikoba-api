@@ -54,7 +54,8 @@ SECRET_KEY = os.getenv(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env_bool("DEBUG", True)
+# Safe by default: production must never expose Django tracebacks or secrets.
+DEBUG = env_bool("DEBUG", False)
 
 ALLOWED_HOSTS = env_list(
     "ALLOWED_HOSTS", ["localhost", "127.0.0.1", "vikoba-api.onrender.com"]
