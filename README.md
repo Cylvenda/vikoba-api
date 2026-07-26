@@ -150,6 +150,20 @@ transactional provider that offers SMTP (such as Resend, Postmark, or SendGrid)
 and replace the `EMAIL_HOST`, `EMAIL_PORT`, credentials, and TLS values with
 the provider's SMTP settings.
 
+Render free web services block outbound SMTP ports. For that plan, use the
+built-in Resend HTTPS backend instead of SMTP. Create a Resend API key, verify
+your sending domain, and set:
+
+```env
+EMAIL_BACKEND=apps.accounts.email_backend.ResendEmailBackend
+RESEND_API_KEY=re_your_secret_api_key
+RESEND_EMAIL_TIMEOUT=10
+DEFAULT_FROM_EMAIL=VICOBA Community Hub <noreply@your-verified-domain.com>
+```
+
+Do not set Gmail SMTP variables when using this backend. Resend's HTTPS API is
+used over port 443, which is not affected by Render's SMTP-port restriction.
+
 For development on a shared Wi-Fi or LAN:
 
 - `DEV_ALLOW_ALL_HOSTS=True` lets Django accept requests from changing local IPs.
