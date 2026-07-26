@@ -102,6 +102,7 @@ Relevant settings include:
 - `EMAIL_HOST`
 - `EMAIL_PORT`
 - `EMAIL_USE_TLS`
+- `EMAIL_TIMEOUT`
 - `EMAIL_HOST_USER`
 - `EMAIL_HOST_PASSWORD`
 - `DEFAULT_FROM_EMAIL`
@@ -121,6 +122,33 @@ Relevant settings include:
 If these are not configured, Djoser activation emails will not work end-to-end.
 If the LiveKit variables are not configured, meeting join requests will return a
 service-unavailable response instead of a connection token.
+
+### Production email (Render)
+
+Account registration sends a Djoser activation email synchronously. Configure a
+working SMTP provider in Render's **Environment** settings; do not rely on a
+local `.env` file, which is not deployed. A 10-second SMTP timeout prevents a
+slow mail server from holding a Gunicorn worker for its entire request timeout.
+
+```env
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_TIMEOUT=10
+EMAIL_HOST_USER=your-sending-address@gmail.com
+EMAIL_HOST_PASSWORD=your-16-character-google-app-password
+DEFAULT_FROM_EMAIL=VICOBA Community Hub <your-sending-address@gmail.com>
+SITE_NAME=VICOBA Community Hub
+EMAIL_FRONTEND_DOMAIN=your-project.vercel.app
+EMAIL_FRONTEND_PROTOCOL=https
+```
+
+For Gmail, `EMAIL_HOST_PASSWORD` must be a Google App Password, not the normal
+Google account password. If SMTP remains unreachable from Render, use a
+transactional provider that offers SMTP (such as Resend, Postmark, or SendGrid)
+and replace the `EMAIL_HOST`, `EMAIL_PORT`, credentials, and TLS values with
+the provider's SMTP settings.
 
 For development on a shared Wi-Fi or LAN:
 
