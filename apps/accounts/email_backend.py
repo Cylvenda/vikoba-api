@@ -6,6 +6,7 @@ RESEND_API_KEY in the production environment.
 """
 
 import json
+import logging
 import os
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -13,6 +14,9 @@ from urllib.request import Request, urlopen
 from django.core.mail.backends.base import BaseEmailBackend
 from django.core.mail.message import EmailMultiAlternatives
 from django.core.mail.utils import DNS_NAME
+
+
+logger = logging.getLogger(__name__)
 
 
 class ResendEmailBackend(BaseEmailBackend):
@@ -39,6 +43,9 @@ class ResendEmailBackend(BaseEmailBackend):
             except HTTPError as error:
                 if not self.fail_silently:
                     details = error.read().decode("utf-8", errors="replace")[:500]
+                    logger.error(
+                        "Resend rejected email with HTTP %s: %s", error.code, details
+                    )
                     raise RuntimeError(
                         f"Resend rejected email ({error.code}): {details}"
                     ) from error
