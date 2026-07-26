@@ -25,6 +25,16 @@ def env_bool(name, default=False):
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def env_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
 def env_list(name, default=None):
     value = os.getenv(name)
     if value is None:
@@ -56,8 +66,10 @@ if DEBUG and DEV_ALLOW_ALL_HOSTS:
 
 
 AUTH_COOKIE = "access"
-AUTH_COOKIE_ACCESS_MAX_AGE = 60 * 30  # 30 minutes — matches ACCESS_TOKEN_LIFETIME
-AUTH_COOKIE_REFRESH_MAX_AGE = 60 * 60  # 1 hour — matches REFRESH_TOKEN_LIFETIME
+# Defaults: 1-hour active session and a 2-hour renewable session. These must
+# match the JWT lifetimes below; production can override them through env vars.
+AUTH_COOKIE_ACCESS_MAX_AGE = env_int("AUTH_COOKIE_ACCESS_MAX_AGE", 60 * 60)
+AUTH_COOKIE_REFRESH_MAX_AGE = env_int("AUTH_COOKIE_REFRESH_MAX_AGE", 60 * 60 * 2)
 AUTH_COOKIE_SECURE = env_bool("AUTH_COOKIE_SECURE", not DEBUG)
 AUTH_COOKIE_HTTP_ONLY = True
 AUTH_COOKIE_PATH = "/"
@@ -66,7 +78,7 @@ AUTH_COOKIE_SAMESITE = os.getenv(
 )
 
 DOMAIN = os.getenv("DOMAIN", "localhost:3000")
-SITE_NAME = os.getenv("SITE_NAME", "Community Hub")
+SITE_NAME = os.getenv("SITE_NAME", "VICOBA Community Hub")
 FRONTEND_URL = os.getenv("FRONTEND_URL", f"http://{DOMAIN}").rstrip("/")
 LIVEKIT_URL = os.getenv("LIVEKIT_URL", "").strip()
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "").strip()
@@ -214,8 +226,8 @@ REST_FRAMEWORK = {
 # ─── Simple JWT ───────────────────────────────────────────────────────────────
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
-    "REFRESH_TOKEN_LIFETIME": timedelta(hours=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(seconds=AUTH_COOKIE_ACCESS_MAX_AGE),
+    "REFRESH_TOKEN_LIFETIME": timedelta(seconds=AUTH_COOKIE_REFRESH_MAX_AGE),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
@@ -273,8 +285,12 @@ DJOSER = {
         "activation": "apps.accounts.email.CustomActivationEmail",
         "password_reset": "apps.accounts.email.CustomPasswordResetEmail",
     },
-    "EMAIL_FRONTEND_DOMAIN": "localhost:3000",
-    "EMAIL_FRONTEND_PROTOCOL": "http",
+    # The activation/reset links must point to the deployed frontend, not a
+    # developer's localhost. Set these in Render for the Vercel domain.
+    "EMAIL_FRONTEND_DOMAIN": os.getenv("EMAIL_FRONTEND_DOMAIN", DOMAIN),
+    "EMAIL_FRONTEND_PROTOCOL": os.getenv(
+        "EMAIL_FRONTEND_PROTOCOL", "https" if not DEBUG else "http"
+    ),
     "EMAIL_FRONTEND_SITE_NAME": SITE_NAME,
 }
 
@@ -287,6 +303,7 @@ EMAIL_BACKEND = os.getenv(
 EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", 10)
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "").strip()
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "").strip()
 DEFAULT_FROM_EMAIL = (
