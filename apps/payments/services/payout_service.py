@@ -386,22 +386,3 @@ class PayoutService:
             )
         )
         return payment_transaction
-
-    @classmethod
-    def refresh_status(cls, payment_transaction):
-        if payment_transaction.status not in {
-            PaymentTransaction.Status.PENDING,
-            PaymentTransaction.Status.PROCESSING,
-        }:
-            return payment_transaction
-
-        response = cls.gateway.check_payout_status(payment_transaction.reference)
-        provider_status = cls._status(response)
-        if provider_status in cls.SUCCESS_STATUSES:
-            return cls.process_successful_payout(payment_transaction)
-        if provider_status in cls.FAILED_STATUSES:
-            return cls.process_failed_payout(
-                payment_transaction,
-                provider_status=provider_status,
-            )
-        return payment_transaction

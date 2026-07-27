@@ -49,16 +49,6 @@ class ClickPesaGateway:
                 order_id=reference,
             )
 
-    def check_collection_status(self, reference):
-        """Check the status of a payment by order reference."""
-        with self._client() as client:
-            return client.payments.get_status(reference)
-
-    def check_payout_status(self, reference):
-        """Check the status of a payout by order reference."""
-        with self._client() as client:
-            return client.payouts.get_status(reference)
-
     def verify_webhook(self, payload, signature):
         checksum_key = settings.CLICKPESA_CHECKSUM_KEY or ""
         if not checksum_key:
@@ -67,6 +57,9 @@ class ClickPesaGateway:
             raise ImproperlyConfigured(
                 "CLICKPESA_CHECKSUM_KEY is required outside DEBUG mode."
             )
+
+        if not signature:
+            raise ValueError("Missing ClickPesa webhook signature.")
 
         if not WebhookValidator.verify(payload, signature, checksum_key):
             raise ValueError("Invalid ClickPesa webhook signature.")

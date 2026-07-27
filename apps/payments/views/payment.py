@@ -1,3 +1,4 @@
+from clickpesa import ClickPesaError
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -38,22 +39,13 @@ class TransactionStatusAPIView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-            try:
-                if transaction.transaction_type == PaymentTransaction.TransactionType.PAYOUT:
-                    transaction = PayoutService.refresh_status(transaction)
-                elif transaction.transaction_type == PaymentTransaction.TransactionType.COLLECTION:
-                    transaction = CollectionService.refresh_status(transaction)
-            except Exception:
-                logger.exception(
-                    "Unable to refresh ClickPesa transaction %s",
-                    transaction.reference,
-                )
-
             return Response(
                 {
                     "uuid": str(transaction.uuid),
                     "status": transaction.status,
                     "provider_reference": transaction.provider_reference,
+                    "reference": transaction.reference,
+                    "completed_at": transaction.completed_at,
                 },
                 status=status.HTTP_200_OK
             )
@@ -61,6 +53,12 @@ class TransactionStatusAPIView(APIView):
             return Response(
                 {"detail": "Transaction not found."},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as exc:
+            logger.error("Transaction status lookup failed: %s", exc, exc_info=True)
+            return Response(
+                {"detail": "Unable to retrieve payment status right now. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 class InitiateMobileCollectionAPIView(APIView):
@@ -161,6 +159,21 @@ class InitiateMobileCollectionAPIView(APIView):
                 purpose=purpose,
                 target_uuid=target_uuid,
                 initiated_by=request.user,
+            )
+        except ClickPesaError as exc:
+            logger.error(
+                "ClickPesa service unavailable for user %s: %s",
+                request.user.id,
+                str(exc),
+            )
+            return Response(
+                {
+                    "detail": (
+                        "Payment service is temporarily unavailable. "
+                        "Please try again later. The system administrator has been notified."
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         except Exception as e:
             return Response(

@@ -1,14 +1,22 @@
+import logging
+
 from clickpesa import (
     AuthenticationError as ClickPesaAuthenticationError,
+    ClickPesaError,
     ForbiddenError as ClickPesaForbiddenError,
     ValidationError as ClickPesaValidationError,
 )
+from django.conf import settings
+from django.core.mail import mail_admins
 from django.db import transaction
 from django.utils import timezone
 from apps.payments.gateway.clickpesa import ClickPesaGateway
 from apps.payments.models import PaymentTransaction
 from apps.payments.services.payment_dispatcher import PaymentDispatcher
 from apps.payments.services.payment_notification_service import notify_payment_event
+
+
+logger = logging.getLogger(__name__)
 
 
 class CollectionService:
@@ -50,8 +58,58 @@ class CollectionService:
                 phone=phone,
                 reference=reference,
             )
+        except ClickPesaError as exc:
+            error_detail = str(exc)
+            logger.error(
+                "ClickPesa API error for transaction %s: %s",
+                payment_transaction.uuid,
+                error_detail,
+                exc_info=True,
+            )
+            payment_transaction.status = PaymentTransaction.Status.FAILED
+            payment_transaction.completed_at = timezone.now()
+            payment_transaction.metadata["failure_detail"] = error_detail
+            payment_transaction.save(
+                update_fields=["status", "completed_at", "metadata"]
+            )
+            transaction.on_commit(
+                lambda: notify_payment_event(
+                    payment_transaction,
+                    "COLLECTION_FAILED",
+                    detail=error_detail,
+                )
+            )
+            try:
+                mail_admins(
+                    subject="ClickPesa API Error - Payment Initiation Failed",
+                    message=(
+                        f"Transaction {payment_transaction.uuid} failed due to a ClickPesa API error.\n\n"
+                        f"Error: {error_detail}\n\n"
+                        f"Reference: {reference}\n"
+                        f"Phone: {phone}\n"
+                        f"Amount: {amount}\n"
+                        f"Purpose: {purpose}"
+                    ),
+                    html_message=(
+                        f"<p>Transaction <strong>{payment_transaction.uuid}</strong> failed due to a ClickPesa API error.</p>"
+                        f"<pre>{error_detail}</pre>"
+                        f"<p>Reference: {reference}<br>"
+                        f"Phone: {phone}<br>"
+                        f"Amount: {amount}<br>"
+                        f"Purpose: {purpose}</p>"
+                    ),
+                )
+            except Exception:
+                logger.exception("Failed to send admin email for ClickPesa error")
+            raise
         except Exception as exc:
             error_detail = str(exc)
+            logger.error(
+                "ClickPesa collect raised for transaction %s: %s",
+                payment_transaction.uuid,
+                error_detail,
+                exc_info=True,
+            )
             if isinstance(
                 exc,
                 (
@@ -90,6 +148,11 @@ class CollectionService:
             )
             return payment_transaction
 
+        logger.info(
+            "ClickPesa collect response for transaction %s: %s",
+            payment_transaction.uuid,
+            response,
+        )
         payment_transaction.provider_reference = response.get("id") or response.get("orderReference") or ""
 
         # Just store raw response in metadata as there's no raw_response field
@@ -140,7 +203,7 @@ class CollectionService:
         )
 
         return payment_transaction
-    
+
     @classmethod
     @transaction.atomic
     def process_failed_collection(cls, payment_transaction):
@@ -165,27 +228,4 @@ class CollectionService:
             )
         )
 
-        return payment_transaction
-
-    @classmethod
-    def refresh_status(cls, payment_transaction):
-        if payment_transaction.status not in {
-            PaymentTransaction.Status.PENDING,
-            PaymentTransaction.Status.PROCESSING,
-        }:
-            return payment_transaction
-
-        response = cls.gateway.check_collection_status(payment_transaction.reference)
-        if isinstance(response, list):
-            item = response[0] if response else {}
-        elif isinstance(response, dict) and isinstance(response.get("data"), list):
-            item = response["data"][0] if response["data"] else {}
-        else:
-            item = response.get("data", response) if isinstance(response, dict) else {}
-
-        provider_status = str(item.get("status") or "").upper()
-        if provider_status in {"SUCCESS", "SETTLED"}:
-            return cls.process_successful_collection(payment_transaction)
-        if provider_status in {"FAILED", "CANCELLED", "REVERSED"}:
-            return cls.process_failed_collection(payment_transaction)
         return payment_transaction
