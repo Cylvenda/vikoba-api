@@ -119,6 +119,45 @@ Relevant settings include:
 - `CLICKPESA_CHECKSUM_KEY`
 - `CLICKPESA_SANDBOX`
 
+### Supabase PostgreSQL
+
+The backend supports either a Supabase `DATABASE_URL` or separate PostgreSQL
+variables. Keep these values in `.env` locally and in the hosting provider's
+environment settings in production; never commit the database password.
+
+Using the connection string copied from Supabase:
+
+```env
+USE_SQLITE=False
+DATABASE_URL=postgresql://postgres:YOUR_URL_ENCODED_PASSWORD@db.htbrlgfgnhiycsasqygv.supabase.co:5432/postgres?sslmode=require
+```
+
+Alternatively, separate variables avoid URL-encoding special characters in the
+password:
+
+```env
+USE_SQLITE=False
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=YOUR_DATABASE_PASSWORD
+DB_HOST=db.htbrlgfgnhiycsasqygv.supabase.co
+DB_PORT=5432
+DB_SSLMODE=require
+```
+
+Supabase direct connections require IPv6. If the development or deployment
+network is IPv4-only, copy the Session pooler parameters from Supabase's
+**Connect** dialog instead. For a serverless deployment, use the Transaction
+pooler parameters.
+
+After configuring the variables, install dependencies and create the schema:
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py check --database default
+```
+
 If these are not configured, Djoser activation emails will not work end-to-end.
 If the LiveKit variables are not configured, meeting join requests will return a
 service-unavailable response instead of a connection token.

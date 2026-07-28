@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+from urllib.parse import parse_qs, unquote, urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -158,15 +159,35 @@ if USE_SQLITE:
         }
     }
 else:
-    DATABASES = {
-        "default": {
+    database_url = os.getenv("DATABASE_URL", "").strip()
+    if database_url:
+        parsed_database_url = urlparse(database_url)
+        database_options = {
+            key: values[-1]
+            for key, values in parse_qs(parsed_database_url.query).items()
+        }
+        database_config = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(parsed_database_url.path.lstrip("/")),
+            "USER": unquote(parsed_database_url.username or ""),
+            "PASSWORD": unquote(parsed_database_url.password or ""),
+            "HOST": parsed_database_url.hostname or "",
+            "PORT": str(parsed_database_url.port or 5432),
+            "OPTIONS": database_options,
+        }
+    else:
+        database_config = {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": os.getenv("POSTGRES_DB") or os.getenv("DB_NAME", "vikoba"),
             "USER": os.getenv("POSTGRES_USER") or os.getenv("DB_USER", "postgres"),
             "PASSWORD": os.getenv("POSTGRES_PASSWORD") or os.getenv("DB_PASSWORD", ""),
             "HOST": os.getenv("DB_HOST", "localhost"),
             "PORT": os.getenv("DB_PORT", "5432"),
+            "OPTIONS": {"sslmode": os.getenv("DB_SSLMODE", "require")},
         }
+
+    DATABASES = {
+        "default": database_config,
     }
 
 
