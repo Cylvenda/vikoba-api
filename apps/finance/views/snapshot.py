@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404
+from django.utils.dateparse import parse_date
 
 from apps.groups.models import Group
 from apps.finance.models import Contribution, Loan, Fine, Transaction
@@ -41,8 +42,27 @@ class FinanceSnapshotAPIView(APIView):
         group_wallet = WalletService.get_group_wallet(group)
         available_cash = group_wallet.balance if group_wallet else Decimal('0.00')
 
-        # Recent Activity
-        recent_txs = Transaction.objects.filter(group=group).select_related('created_by').order_by('-created_at')[:50]
+        # Activity. Dashboards keep the latest 50 records; reporting requests can
+        # supply a month or date range and receive the matching transaction set.
+        activity_query = Transaction.objects.filter(group=group).select_related('created_by')
+        report_month = request.query_params.get("month")
+        date_from = parse_date(request.query_params.get("date_from", ""))
+        date_to = parse_date(request.query_params.get("date_to", ""))
+
+        if report_month:
+            try:
+                year, month = (int(part) for part in report_month.split("-", 1))
+                activity_query = activity_query.filter(created_at__year=year, created_at__month=month)
+            except (TypeError, ValueError):
+                pass
+        if date_from:
+            activity_query = activity_query.filter(created_at__date__gte=date_from)
+        if date_to:
+            activity_query = activity_query.filter(created_at__date__lte=date_to)
+
+        is_report_request = bool(report_month or date_from or date_to or request.query_params.get("all_activity") == "true")
+        ordered_activity = activity_query.order_by("-created_at")
+        recent_txs = ordered_activity[:5000] if is_report_request else ordered_activity[:50]
         recent_activity = [
             {
                 "id": str(tx.uuid),
