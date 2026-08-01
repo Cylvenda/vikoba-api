@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError
 from .models import Meeting, AgendaSection, AgendaItem, Attendance, MinuteSection, MeetingMinutes, AgendaMinuteNote, AdditionalNote
 from .serializers import (
     MeetingSerializer,
+    MeetingListSerializer,
     AgendaSectionSerializer,
     AgendaItemSerializer,
     AttendanceSerializer,
@@ -50,17 +51,34 @@ class MeetingViewSet(viewsets.ModelViewSet):
     lookup_field = "uuid"
     lookup_url_kwarg = "uuid"
 
+    def get_serializer_class(self):
+        if self.action == "list":
+            return MeetingListSerializer
+        return MeetingSerializer
+
     def get_queryset(self):
         user = self.request.user
 
-        return Meeting.objects.filter(
+        queryset = Meeting.objects.filter(
             Q(host=user)
             | Q(
                 group__memberships__user=user,
                 group__memberships__is_verified=True,
                 group__memberships__is_active=True,
             )
-        ).distinct()
+        ).select_related("host", "group").distinct()
+
+        group_uuid = self.request.query_params.get("group_uuid")
+        if group_uuid:
+            queryset = queryset.filter(group__uuid=group_uuid)
+
+        if self.action != "list":
+            queryset = queryset.prefetch_related(
+                "agenda_sections__items",
+                "agenda_items",
+                "minute_sections",
+            )
+        return queryset
 
     def assert_group_host(self, user, group):
         is_host = group.memberships.filter(
@@ -254,13 +272,20 @@ class MeetingViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
+    def bootstrap(self, request, uuid=None):
+        """Load the meeting page and its presence state in one read-only request."""
+        meeting = self.get_object()
+        attendance_qs = meeting.attendance_records.select_related("user")
+        sessions = meeting.participant_sessions.select_related("user").order_by("-joined_at")
+        return Response({
+            "meeting": MeetingSerializer(meeting, context={"request": request}).data,
+            "attendance": AttendanceSerializer(attendance_qs, many=True).data,
+            "participants": ParticipantSessionSerializer(sessions, many=True).data,
+        })
+
+    @action(detail=True, methods=["get"])
     def attendance(self, request, uuid=None):
         meeting = self.get_object()
-        sync_meeting_attendance(
-            meeting,
-            include_expected_absentees=meeting.status == "ended",
-            reference_time=meeting.actual_end if meeting.status == "ended" else timezone.now(),
-        )
         attendance_qs = meeting.attendance_records.select_related("user")
         serializer = AttendanceSerializer(attendance_qs, many=True)
         return Response(serializer.data)

@@ -44,7 +44,7 @@ class MeetingLifecycleTests(APITestCase):
         GroupMembership.objects.create(
             user=self.host,
             group=self.group,
-            role=GroupMembership.Role.HOST,
+            role=GroupMembership.Role.CHAIRPERSON,
             is_active=True,
             is_verified=True,
         )
@@ -70,6 +70,66 @@ class MeetingLifecycleTests(APITestCase):
             scheduled_start=timezone.now() + timedelta(hours=1),
             scheduled_end=timezone.now() + timedelta(hours=2),
         )
+
+    def test_bootstrap_combines_meeting_attendance_and_participants(self):
+        Attendance.objects.create(
+            meeting=self.meeting,
+            user=self.member,
+            status="present",
+            is_verified_member=True,
+        )
+        ParticipantSession.objects.create(meeting=self.meeting, user=self.member)
+        self.client.force_authenticate(user=self.member)
+
+        response = self.client.get(
+            reverse("meetings-bootstrap", kwargs={"uuid": self.meeting.uuid})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["meeting"]["id"], str(self.meeting.uuid))
+        self.assertEqual(len(response.data["attendance"]), 1)
+        self.assertEqual(len(response.data["participants"]), 1)
+
+    def test_attendance_get_does_not_create_or_update_records(self):
+        self.meeting.status = "ongoing"
+        self.meeting.actual_start = timezone.now() - timedelta(minutes=5)
+        self.meeting.save(update_fields=["status", "actual_start"])
+        ParticipantSession.objects.create(meeting=self.meeting, user=self.member)
+        self.client.force_authenticate(user=self.member)
+
+        response = self.client.get(
+            reverse("meetings-attendance", kwargs={"uuid": self.meeting.uuid})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+        self.assertFalse(Attendance.objects.filter(meeting=self.meeting).exists())
+
+    def test_list_can_be_filtered_by_group_and_uses_lightweight_payload(self):
+        other_group = Group.objects.create(name="Other", created_by=self.host)
+        GroupMembership.objects.create(
+            user=self.host,
+            group=other_group,
+            role=GroupMembership.Role.CHAIRPERSON,
+            is_active=True,
+            is_verified=True,
+        )
+        Meeting.objects.create(
+            title="Other meeting",
+            group=other_group,
+            host=self.host,
+            scheduled_start=timezone.now() + timedelta(days=1),
+        )
+        self.client.force_authenticate(user=self.host)
+
+        response = self.client.get(
+            reverse("meetings-list"),
+            {"group_uuid": str(self.group.uuid)},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertNotIn("agenda_items", response.data[0])
 
     def test_host_and_member_can_complete_meeting_lifecycle(self):
         self.client.force_authenticate(user=self.host)

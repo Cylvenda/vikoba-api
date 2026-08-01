@@ -243,6 +243,23 @@ class MeetingSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class MeetingListSerializer(serializers.ModelSerializer):
+    """Small payload used by dashboards and meeting timelines."""
+
+    id = serializers.UUIDField(source="uuid", read_only=True)
+    group = serializers.SlugRelatedField(slug_field="uuid", read_only=True)
+    host = serializers.UUIDField(source="host.uuid", read_only=True)
+    host_email = serializers.EmailField(source="host.email", read_only=True)
+
+    class Meta:
+        model = Meeting
+        fields = [
+            "id", "title", "description", "group", "host", "host_email",
+            "scheduled_start", "scheduled_end", "actual_start", "actual_end",
+            "status", "is_locked", "created_at", "updated_at",
+        ]
+
+
 class MeetingAuditLogSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(source="uuid", read_only=True)
     user = serializers.UUIDField(source="user.uuid", read_only=True, allow_null=True)

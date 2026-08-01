@@ -21,6 +21,7 @@ from apps.finance.views.repayment import (
     LoanRepaymentAPIView,
 )
 from apps.finance.views.snapshot import FinanceSnapshotAPIView
+from apps.finance.views.overview import UserFinanceOverviewAPIView
 from apps.finance.views.wallet import GroupWalletReportAPIView
 
 router = DefaultRouter()
@@ -37,6 +38,11 @@ router.register(
 
 urlpatterns = [
     path("", include(router.urls)),
+    path(
+        "overview/",
+        UserFinanceOverviewAPIView.as_view(),
+        name="user-finance-overview",
+    ),
     path(
         "contributions/",
         ContributionListCreateAPIView.as_view(),

@@ -9,7 +9,7 @@ from django.core.mail import EmailMultiAlternatives
 from .models import Attendance, ParticipantSession, MeetingAuditLog
 
 
-def send_templated_email(*, subject, to, text_template, html_template, context):
+def send_templated_email(*, subject, to, text_template, html_template, context, bcc=None):
     text_body = render_to_string(text_template, context)
     html_body = render_to_string(html_template, context)
 
@@ -18,6 +18,7 @@ def send_templated_email(*, subject, to, text_template, html_template, context):
         body=text_body,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=to,
+        bcc=bcc or [],
     )
     email.attach_alternative(html_body, "text/html")
     email.send(fail_silently=False)
@@ -53,28 +54,28 @@ def send_meeting_scheduled_email(meeting):
         timezone.localtime(meeting.scheduled_end) if meeting.scheduled_end else None
     )
 
-    for membership in recipients:
-        context = {
-            "site_name": settings.SITE_NAME,
-            "recipient_email": membership.user.email,
-            "meeting_title": meeting.title,
-            "meeting_description": meeting.description,
-            "group_name": meeting.group.name,
-            "host_name": meeting.host.full_name.strip() or meeting.host.email,
-            "scheduled_start": scheduled_start,
-            "scheduled_end": scheduled_end,
-            "meeting_url": get_meeting_portal_url(meeting),
-            "action_label": "View Meeting Details",
-            "headline": "A new meeting has been scheduled",
-            "summary": "A new group meeting has been created. Review the details and prepare to join on time.",
-        }
-        send_templated_email(
-            subject=subject,
-            to=[membership.user.email],
-            text_template="email/meeting_scheduled.txt",
-            html_template="email/meeting_scheduled.html",
-            context=context,
-        )
+    context = {
+        "site_name": settings.SITE_NAME,
+        "recipient_email": "Group member",
+        "meeting_title": meeting.title,
+        "meeting_description": meeting.description,
+        "group_name": meeting.group.name,
+        "host_name": meeting.host.full_name.strip() or meeting.host.email,
+        "scheduled_start": scheduled_start,
+        "scheduled_end": scheduled_end,
+        "meeting_url": get_meeting_portal_url(meeting),
+        "action_label": "View Meeting Details",
+        "headline": "A new meeting has been scheduled",
+        "summary": "A new group meeting has been created. Review the details and prepare to join on time.",
+    }
+    send_templated_email(
+        subject=subject,
+        to=[settings.DEFAULT_FROM_EMAIL],
+        bcc=[membership.user.email for membership in recipients],
+        text_template="email/meeting_scheduled.txt",
+        html_template="email/meeting_scheduled.html",
+        context=context,
+    )
 
 
 def send_meeting_started_email(meeting, *, instant=False):
@@ -85,32 +86,32 @@ def send_meeting_started_email(meeting, *, instant=False):
     subject = f"Meeting is live now: {meeting.title}"
     actual_start = timezone.localtime(meeting.actual_start or timezone.now())
 
-    for membership in recipients:
-        context = {
-            "site_name": settings.SITE_NAME,
-            "recipient_email": membership.user.email,
-            "meeting_title": meeting.title,
-            "meeting_description": meeting.description,
-            "group_name": meeting.group.name,
-            "host_name": meeting.host.full_name.strip() or meeting.host.email,
-            "scheduled_start": actual_start,
-            "scheduled_end": None,
-            "meeting_url": get_meeting_session_url(meeting),
-            "action_label": "Join Meeting Now",
-            "headline": "An instant meeting is now live" if instant else "Your meeting has started",
-            "summary": (
-                "The host started an instant meeting for your group. Join now to participate live."
-                if instant
-                else "The scheduled meeting is now live. Join now to participate."
-            ),
-        }
-        send_templated_email(
-            subject=subject,
-            to=[membership.user.email],
-            text_template="email/meeting_started.txt",
-            html_template="email/meeting_started.html",
-            context=context,
-        )
+    context = {
+        "site_name": settings.SITE_NAME,
+        "recipient_email": "Group member",
+        "meeting_title": meeting.title,
+        "meeting_description": meeting.description,
+        "group_name": meeting.group.name,
+        "host_name": meeting.host.full_name.strip() or meeting.host.email,
+        "scheduled_start": actual_start,
+        "scheduled_end": None,
+        "meeting_url": get_meeting_session_url(meeting),
+        "action_label": "Join Meeting Now",
+        "headline": "An instant meeting is now live" if instant else "Your meeting has started",
+        "summary": (
+            "The host started an instant meeting for your group. Join now to participate live."
+            if instant
+            else "The scheduled meeting is now live. Join now to participate."
+        ),
+    }
+    send_templated_email(
+        subject=subject,
+        to=[settings.DEFAULT_FROM_EMAIL],
+        bcc=[membership.user.email for membership in recipients],
+        text_template="email/meeting_started.txt",
+        html_template="email/meeting_started.html",
+        context=context,
+    )
 
 
 def log_meeting_action(meeting, action, user=None, metadata=None):
@@ -194,21 +195,16 @@ def initialize_meeting_attendance(meeting):
     """
     expected_attendees = get_authorized_meeting_attendees(meeting)
     
-    attendance_records = []
-    for user in expected_attendees:
-        is_verified = is_verified_meeting_attendee(meeting, user)
-        attendance, created = Attendance.objects.get_or_create(
+    attendance_records = [
+        Attendance(
             meeting=meeting,
             user=user,
-            defaults={
-                "status": "absent",  # Start as absent, will be updated when they join
-                "is_verified_member": is_verified,
-            }
+            status="absent",
+            is_verified_member=True,
         )
-        if created:
-            attendance_records.append(attendance)
-    
-    return attendance_records
+        for user in expected_attendees
+    ]
+    return Attendance.objects.bulk_create(attendance_records, ignore_conflicts=True)
 
 
 @transaction.atomic
@@ -345,6 +341,15 @@ def sync_meeting_attendance(meeting, *, include_expected_absentees=False, refere
     for attendance in existing_attendances.values():
         target_users[attendance.user_id] = attendance.user
 
+    verified_user_ids = set(
+        meeting.group.memberships.filter(
+            user_id__in=target_users,
+            is_verified=True,
+            is_active=True,
+        ).values_list("user_id", flat=True)
+    )
+    verified_user_ids.add(meeting.host_id)
+
     to_create = []
     to_update = []
     synced_attendances = []
@@ -411,7 +416,7 @@ def sync_meeting_attendance(meeting, *, include_expected_absentees=False, refere
         attendance.last_left_at = last_left_at
         attendance.total_duration_minutes = total_duration_minutes
         attendance.status = status
-        attendance.is_verified_member = is_verified_meeting_attendee(meeting, user)
+        attendance.is_verified_member = user_id in verified_user_ids
 
         if attendance.pk:
             to_update.append(attendance)

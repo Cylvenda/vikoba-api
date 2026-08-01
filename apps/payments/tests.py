@@ -17,6 +17,62 @@ from apps.payments.services.payout_service import PayoutService
 User = get_user_model()
 
 
+class ContributionCollectionOwnershipTests(APITestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            email="saving-owner@example.com",
+            phone="+255710001001",
+            password="StrongPassword123!",
+        )
+        self.other_user = User.objects.create_user(
+            email="saving-other@example.com",
+            phone="+255710001002",
+            password="StrongPassword123!",
+        )
+        self.group = Group.objects.create(name="Saving Ownership", created_by=self.owner)
+        self.owner_membership = GroupMembership.objects.create(
+            user=self.owner,
+            group=self.group,
+            role=GroupMembership.Role.MEMBER,
+            is_active=True,
+            is_verified=True,
+        )
+        GroupMembership.objects.create(
+            user=self.other_user,
+            group=self.group,
+            role=GroupMembership.Role.TREASURER,
+            is_active=True,
+            is_verified=True,
+        )
+        self.contribution = Contribution.objects.create(
+            group=self.group,
+            member=self.owner_membership,
+            amount=Decimal("25000.00"),
+            status=Contribution.Status.PENDING,
+            paid_at=timezone.now(),
+            received_by=self.owner,
+        )
+
+    @patch("apps.payments.views.payment.CollectionService.initiate_mobile_collection")
+    def test_another_member_cannot_retry_someone_elses_contribution(self, initiate_collection):
+        self.client.force_authenticate(self.other_user)
+
+        response = self.client.post(
+            "/api/payments/initiate/",
+            {
+                "phone": self.other_user.phone,
+                "amount": str(self.contribution.amount),
+                "purpose": PaymentTransaction.TransactionPurpose.CONTRIBUTION,
+                "target_uuid": str(self.contribution.uuid),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data["detail"], "You can only pay your own contribution.")
+        initiate_collection.assert_not_called()
+
+
 class LoanPayoutFlowTests(APITestCase):
     def setUp(self):
         self.chairperson = User.objects.create_user(
