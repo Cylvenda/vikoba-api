@@ -69,10 +69,13 @@ class UserFinanceOverviewAPIView(APIView):
             or Decimal("0.00")
         )
 
+        transaction_query = Transaction.objects.filter(group_id__in=group_ids)
+        recent_activity_total = transaction_query.count()
+        recent_activity_limit = 5
         recent_transactions = (
-            Transaction.objects.filter(group_id__in=group_ids)
+            transaction_query
             .select_related("created_by", "group")
-            .order_by("-created_at")[:5]
+            .order_by("-created_at")[:recent_activity_limit]
         )
         recent_activity = [
             {
@@ -100,5 +103,7 @@ class UserFinanceOverviewAPIView(APIView):
                 "unpaidFines": float(max(unpaid_fine_amount - fine_payments, Decimal("0.00"))),
                 "consolidatedCash": float(consolidated_cash),
                 "recentActivity": recent_activity,
+                "recentActivityTotal": recent_activity_total,
+                "recentActivityLimit": recent_activity_limit,
             }
         )

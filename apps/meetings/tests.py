@@ -308,6 +308,26 @@ class MeetingLifecycleTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         mocked_send_email.assert_called_once()
 
+    @patch("apps.meetings.services.EmailMultiAlternatives.send", side_effect=RuntimeError("provider unavailable"))
+    def test_scheduled_meeting_creation_succeeds_when_email_delivery_fails(self, mocked_send):
+        self.client.force_authenticate(user=self.host)
+
+        response = self.client.post(
+            reverse("meetings-list"),
+            {
+                "title": "Board Review Without Email",
+                "description": "The meeting must still be created",
+                "group": str(self.group.uuid),
+                "scheduled_start": (timezone.now() + timedelta(days=1)).isoformat(),
+                "scheduled_end": (timezone.now() + timedelta(days=1, hours=1)).isoformat(),
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Meeting.objects.filter(title="Board Review Without Email").exists())
+        mocked_send.assert_called_once()
+
     @patch("apps.meetings.views.send_meeting_started_email")
     def test_starting_meeting_sends_live_email(self, mocked_send_email):
         self.client.force_authenticate(user=self.host)

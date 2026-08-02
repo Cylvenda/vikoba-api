@@ -3,6 +3,7 @@ from apps.payments.views.payment import (
     InitiateLoanPayoutAPIView,
     InitiateMobileCollectionAPIView,
     LoanPayoutPreviewAPIView,
+    SimulateLoanPayoutAPIView,
     TransactionStatusAPIView,
 )
 from apps.payments.views.webhook import ClickPesaWebhookAPIView
@@ -32,5 +33,10 @@ urlpatterns = [
         "payouts/loans/<uuid:loan_uuid>/initiate/",
         InitiateLoanPayoutAPIView.as_view(),
         name="initiate-loan-payout",
+    ),
+    path(
+        "payouts/loans/<uuid:loan_uuid>/simulate/",
+        SimulateLoanPayoutAPIView.as_view(),
+        name="simulate-loan-payout",
     ),
 ]

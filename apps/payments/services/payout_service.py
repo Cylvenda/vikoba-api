@@ -86,6 +86,33 @@ class PayoutService:
         return provider
 
     @classmethod
+    def preview_demo_loan_payout(cls, *, loan):
+        """Build a local fallback preview without authenticating with ClickPesa."""
+        cls._validate_loan(loan)
+        phone = cls.normalize_phone(loan.borrower.user.phone)
+        wallet, _ = Wallet.objects.get_or_create(
+            wallet_type=Wallet.WalletType.GROUP,
+            owner_uuid=loan.group.uuid,
+        )
+        return {
+            "loan_uuid": str(loan.uuid),
+            "borrower_name": loan.borrower.user.full_name or loan.borrower.user.email,
+            "phone_number": phone,
+            "amount": str(loan.principal_amount),
+            "fee": "0.00",
+            "total_debit": str(loan.principal_amount),
+            "currency": "TZS",
+            "group_wallet_balance": str(wallet.available_balance),
+            "finance_wallet_balance": str(
+                FinanceWalletService.get_group_balance(loan.group)
+            ),
+            "gateway_balance": "0.00",
+            "receiver": {},
+            "demo_payout_enabled": True,
+            "gateway_available": False,
+        }
+
+    @classmethod
     def preview_loan_payout(cls, *, loan):
         cls._validate_loan(loan)
         phone = cls.normalize_phone(loan.borrower.user.phone)
@@ -121,6 +148,8 @@ class PayoutService:
             ),
             "gateway_balance": str(gateway_balance),
             "receiver": cls._response_item(response).get("receiver") or {},
+            "demo_payout_enabled": False,
+            "gateway_available": True,
         }
 
     @staticmethod
@@ -282,6 +311,21 @@ class PayoutService:
             )
         )
         return payment_transaction
+
+    @classmethod
+    @transaction.atomic
+    def simulate_loan_payout(cls, *, loan, initiated_by):
+        """Activate a loan locally for a demo; this method never calls ClickPesa."""
+        locked_loan = Loan.objects.select_for_update().select_related(
+            "group", "borrower__user", "loan_product"
+        ).get(pk=loan.pk)
+        cls._validate_loan(locked_loan)
+        LoanService.disburse_loan(
+            loan=locked_loan,
+            disbursed_by=initiated_by,
+            confirmed_payout=True,
+        )
+        return locked_loan
 
     @classmethod
     @transaction.atomic

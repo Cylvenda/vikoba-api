@@ -45,7 +45,7 @@ class RealtimeFlowTests(APITestCase):
         GroupMembership.objects.create(
             user=self.host,
             group=self.group,
-            role=GroupMembership.Role.HOST,
+            role=GroupMembership.Role.CHAIRPERSON,
             is_active=True,
             is_verified=True,
         )

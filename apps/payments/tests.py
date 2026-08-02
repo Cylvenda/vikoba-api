@@ -155,6 +155,7 @@ class LoanPayoutFlowTests(APITestCase):
         )
         self.client.force_authenticate(self.treasurer)
 
+    @override_settings(ENABLE_DEMO_PAYOUTS=False)
     @patch.object(PayoutService.gateway, "preview_payout")
     def test_treasurer_can_preview_real_payout_cost(self, preview_payout):
         preview_payout.return_value = {
@@ -182,6 +183,20 @@ class LoanPayoutFlowTests(APITestCase):
 
         self.assertEqual(response.status_code, 403)
         preview_payout.assert_not_called()
+
+    @override_settings(ENABLE_DEMO_PAYOUTS=False)
+    @patch.object(PayoutService.gateway, "preview_payout")
+    def test_gateway_network_failure_returns_service_unavailable(self, preview_payout):
+        from clickpesa import ClickPesaError
+
+        preview_payout.side_effect = ClickPesaError("Network error during authentication")
+
+        response = self.client.get(
+            f"/api/payments/payouts/loans/{self.loan.uuid}/preview/"
+        )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn("authentication", response.data["detail"].lower())
 
     @patch.object(PayoutService.gateway, "payout")
     @patch.object(PayoutService.gateway, "preview_payout")
@@ -262,6 +277,68 @@ class LoanPayoutFlowTests(APITestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(PaymentTransaction.objects.count(), 0)
+
+    @override_settings(ENABLE_DEMO_PAYOUTS=True)
+    @patch.object(PayoutService.gateway, "payout")
+    @patch.object(PayoutService.gateway, "preview_payout")
+    def test_demo_release_generates_installments_without_clickpesa(
+        self, preview_payout, payout
+    ):
+        response = self.client.post(
+            f"/api/payments/payouts/loans/{self.loan.uuid}/simulate/",
+            {"confirmed": True},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.loan.refresh_from_db()
+        self.assertEqual(self.loan.status, Loan.Status.ACTIVE)
+        self.assertEqual(self.loan.installments.count(), 2)
+        self.assertEqual(response.data["installment_count"], 2)
+        self.assertEqual(PaymentTransaction.objects.count(), 0)
+        preview_payout.assert_not_called()
+        payout.assert_not_called()
+
+    @override_settings(ENABLE_DEMO_PAYOUTS=True)
+    @patch.object(PayoutService.gateway, "preview_payout")
+    def test_demo_preview_remains_available_when_clickpesa_is_down(self, preview_payout):
+        from clickpesa import ClickPesaError
+
+        preview_payout.side_effect = ClickPesaError("Gateway unavailable")
+        response = self.client.get(
+            f"/api/payments/payouts/loans/{self.loan.uuid}/preview/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["demo_payout_enabled"])
+        self.assertFalse(response.data["gateway_available"])
+        self.assertEqual(response.data["fee"], "0.00")
+        preview_payout.assert_called_once()
+
+    @override_settings(ENABLE_DEMO_PAYOUTS=False)
+    def test_demo_release_is_hidden_when_disabled(self):
+        response = self.client.post(
+            f"/api/payments/payouts/loans/{self.loan.uuid}/simulate/",
+            {"confirmed": True},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.loan.refresh_from_db()
+        self.assertEqual(self.loan.status, Loan.Status.APPROVED)
+
+    @override_settings(ENABLE_DEMO_PAYOUTS=True)
+    def test_non_treasurer_cannot_demo_release(self):
+        self.client.force_authenticate(self.borrower_user)
+        response = self.client.post(
+            f"/api/payments/payouts/loans/{self.loan.uuid}/simulate/",
+            {"confirmed": True},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.loan.refresh_from_db()
+        self.assertEqual(self.loan.status, Loan.Status.APPROVED)
 
     @patch.object(PayoutService.gateway, "payout")
     @patch.object(PayoutService.gateway, "preview_payout")

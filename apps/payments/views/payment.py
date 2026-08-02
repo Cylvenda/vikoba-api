@@ -1,4 +1,5 @@
 from clickpesa import ClickPesaError
+from django.conf import settings
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -208,12 +209,77 @@ class LoanPayoutPreviewAPIView(APIView):
         is_group_treasurer(request.user, loan.group)
         try:
             preview = PayoutService.preview_loan_payout(loan=loan)
+            preview["demo_payout_enabled"] = settings.ENABLE_DEMO_PAYOUTS
+        except ClickPesaError as exc:
+            logger.warning(
+                "ClickPesa payout preview unavailable for loan %s: %s",
+                loan.uuid,
+                exc,
+            )
+            if settings.ENABLE_DEMO_PAYOUTS:
+                preview = PayoutService.preview_demo_loan_payout(loan=loan)
+            else:
+                return Response(
+                    {"detail": "ClickPesa is temporarily unavailable. Please try again shortly."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
         except Exception as exc:
             return Response(
                 {"detail": f"Unable to preview ClickPesa payout: {exc}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return Response(preview, status=status.HTTP_200_OK)
+
+
+class SimulateLoanPayoutAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, loan_uuid):
+        if not settings.ENABLE_DEMO_PAYOUTS:
+            return Response(
+                {"detail": "Demo loan releases are disabled."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if request.data.get("confirmed") is not True:
+            return Response(
+                {"detail": "Explicit demo release confirmation is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            loan = Loan.objects.select_related(
+                "group", "borrower__user", "loan_product"
+            ).get(uuid=loan_uuid)
+        except Loan.DoesNotExist:
+            return Response(
+                {"detail": "Loan not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        is_group_treasurer(request.user, loan.group)
+        try:
+            loan = PayoutService.simulate_loan_payout(
+                loan=loan,
+                initiated_by=request.user,
+            )
+        except Exception as exc:
+            return Response(
+                {"detail": f"Demo loan release failed: {exc}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "loan_uuid": str(loan.uuid),
+                "status": loan.status,
+                "installment_count": loan.installments.count(),
+                "message": (
+                    "Demo release completed. No ClickPesa transfer was made; "
+                    "the repayment installments are ready."
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class InitiateLoanPayoutAPIView(APIView):

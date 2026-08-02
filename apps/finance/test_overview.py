@@ -113,6 +113,8 @@ class UserFinanceOverviewTests(APITestCase):
         self.assertEqual(response.data["unpaidFines"], 50.0)
         self.assertEqual(response.data["consolidatedCash"], 1234.0)
         self.assertEqual(response.data["recentActivity"][0]["groupName"], self.group.name)
+        self.assertEqual(response.data["recentActivityTotal"], 1)
+        self.assertEqual(response.data["recentActivityLimit"], 5)
         wallet.refresh_from_db()
         self.assertEqual(wallet.updated_at, wallet_updated_at)
 

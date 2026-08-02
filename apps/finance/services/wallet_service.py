@@ -272,8 +272,12 @@ class WalletService:
         if not cls._wallet_tables_ready():
             return cls._legacy_group_wallet_report(group)
 
-        group_wallet = cls.rebuild_group_wallet(group)
-        member_wallets = cls.rebuild_group_member_wallets(group)
+        # Wallets are maintained by the contribution, loan, repayment, and fine
+        # mutation services. Dashboard/report reads must not recalculate and
+        # write every member wallet, otherwise this endpoint becomes an N+1
+        # query and write operation that grows linearly with group membership.
+        group_wallet = GroupWallet.objects.filter(group=group).first()
+        members = group.memberships.select_related("user", "finance_wallet").all()
 
         return {
             "groupWallet": {
@@ -285,16 +289,16 @@ class WalletService:
             },
             "memberWallets": [
                 {
-                    "membership_uuid": str(wallet.member.uuid),
-                    "member_user_id": str(wallet.member.user.uuid),
-                    "member_name": cls._display_name(wallet.member.user),
-                    "savings_balance": float(wallet.savings_balance),
-                    "loan_outstanding": float(wallet.loan_outstanding),
-                    "fine_outstanding": float(wallet.fine_outstanding),
-                    "net_balance": float(wallet.net_balance),
+                    "membership_uuid": str(member.uuid),
+                    "member_user_id": str(member.user.uuid),
+                    "member_name": cls._display_name(member.user),
+                    "savings_balance": float(wallet.savings_balance) if wallet else 0.0,
+                    "loan_outstanding": float(wallet.loan_outstanding) if wallet else 0.0,
+                    "fine_outstanding": float(wallet.fine_outstanding) if wallet else 0.0,
+                    "net_balance": float(wallet.net_balance) if wallet else 0.0,
                 }
-                for wallet in member_wallets
-                if wallet is not None
+                for member in members
+                for wallet in [getattr(member, "finance_wallet", None)]
             ],
         }
 

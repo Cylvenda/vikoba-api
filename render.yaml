@@ -1,0 +1,75 @@
+services:
+  - type: web
+    name: vikoba-api
+    runtime: python
+    plan: free
+    autoDeployTrigger: commit
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py migrate --noinput
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile -
+    healthCheckPath: /health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: USE_SQLITE
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vikoba-postgres
+          property: connectionString
+      - key: SECURE_SSL_REDIRECT
+        value: "true"
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: CSRF_COOKIE_SECURE
+        value: "true"
+      - key: SECURE_HSTS_SECONDS
+        value: "31536000"
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: AUTH_COOKIE_SAMESITE
+        value: "None"
+      - key: DOMAIN
+        value: vikoba.cylvenda.co.tz
+      - key: FRONTEND_URL
+        value: https://vikoba.cylvenda.co.tz
+      - key: EMAIL_FRONTEND_DOMAIN
+        value: vikoba.cylvenda.co.tz
+      - key: EMAIL_FRONTEND_PROTOCOL
+        value: https
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://vikoba.cylvenda.co.tz
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://vikoba.cylvenda.co.tz,https://vikoba-api.onrender.com
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: CLICKPESA_CLIENT_ID
+        sync: false
+      - key: CLICKPESA_API_KEY
+        sync: false
+      - key: CLICKPESA_CHECKSUM_KEY
+        sync: false
+      - key: CLICKPESA_SANDBOX
+        value: "false"
+      - key: ENABLE_DEMO_PAYOUTS
+        value: "true"
+
+databases:
+  - name: vikoba-postgres
+    plan: free
+    databaseName: vikoba
+    user: vikoba

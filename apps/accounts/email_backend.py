@@ -9,11 +9,14 @@ import json
 import logging
 import os
 import re
+from email.utils import getaddresses
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from django.core.exceptions import ValidationError
 from django.core.mail.backends.base import BaseEmailBackend
 from django.core.mail.message import EmailMultiAlternatives
+from django.core.validators import validate_email
 
 
 logger = logging.getLogger(__name__)
@@ -73,12 +76,31 @@ class BrevoEmailBackend(BaseEmailBackend):
 
     def _send(self, message):
         to_recipients = []
-        for addr in message.to:
-            to_recipients.append({"email": addr.strip()})
-        for addr in getattr(message, "cc", []) or []:
-            to_recipients.append({"email": addr.strip()})
-        for addr in getattr(message, "bcc", []) or []:
-            to_recipients.append({"email": addr.strip()})
+        raw_recipients = [
+            *(message.to or []),
+            *(getattr(message, "cc", []) or []),
+            *(getattr(message, "bcc", []) or []),
+        ]
+        seen_emails = set()
+        for name, address in getaddresses(raw_recipients):
+            address = address.strip()
+            try:
+                validate_email(address)
+            except ValidationError:
+                logger.warning("Skipping invalid Brevo recipient address: %r", address)
+                continue
+
+            normalized_address = address.casefold()
+            if normalized_address in seen_emails:
+                continue
+            seen_emails.add(normalized_address)
+            recipient = {"email": address}
+            if name.strip():
+                recipient["name"] = name.strip()
+            to_recipients.append(recipient)
+
+        if not to_recipients:
+            raise ValueError("Email has no valid recipient addresses.")
 
         payload = {
             "sender": {

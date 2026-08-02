@@ -1,4 +1,5 @@
 from datetime import timedelta
+import logging
 
 from django.conf import settings
 from django.db import transaction
@@ -7,6 +8,8 @@ from django.utils import timezone
 from django.core.mail import EmailMultiAlternatives
 
 from .models import Attendance, ParticipantSession, MeetingAuditLog
+
+logger = logging.getLogger(__name__)
 
 
 def send_templated_email(*, subject, to, text_template, html_template, context, bcc=None):
@@ -21,7 +24,14 @@ def send_templated_email(*, subject, to, text_template, html_template, context, 
         bcc=bcc or [],
     )
     email.attach_alternative(html_body, "text/html")
-    email.send(fail_silently=False)
+    try:
+        email.send(fail_silently=False)
+    except Exception:
+        # Meeting state is authoritative; notification delivery is best-effort
+        # and must never turn a successful create/start operation into HTTP 500.
+        logger.exception("Failed to send meeting notification email: %s", subject)
+        return False
+    return True
 
 
 def get_meeting_notification_recipients(meeting):

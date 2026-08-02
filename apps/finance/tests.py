@@ -471,6 +471,10 @@ class LoanRepaymentFlowTests(APITestCase):
 
     def test_wallet_report_endpoint_returns_group_and_member_wallets(self):
         self._create_disbursed_loan()
+        group_wallet = GroupWallet.objects.get(group=self.group)
+        member_wallet = MemberWallet.objects.get(member=self.borrower_membership)
+        group_wallet_updated_at = group_wallet.updated_at
+        member_wallet_updated_at = member_wallet.updated_at
         self.client.force_authenticate(user=self.host)
 
         response = self.client.get(
@@ -481,3 +485,7 @@ class LoanRepaymentFlowTests(APITestCase):
         self.assertIn("groupWallet", response.data)
         self.assertIn("memberWallets", response.data)
         self.assertGreaterEqual(len(response.data["memberWallets"]), 1)
+        group_wallet.refresh_from_db()
+        member_wallet.refresh_from_db()
+        self.assertEqual(group_wallet.updated_at, group_wallet_updated_at)
+        self.assertEqual(member_wallet.updated_at, member_wallet_updated_at)

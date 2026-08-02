@@ -39,8 +39,7 @@ class FinanceSnapshotAPIView(APIView):
             group=group, status=Fine.Status.UNPAID
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-        group_wallet = WalletService.get_group_wallet(group)
-        available_cash = group_wallet.balance if group_wallet else Decimal('0.00')
+        available_cash = Decimal(str(wallet_report["groupWallet"]["balance"]))
 
         # Activity. Dashboards keep the latest 50 records; reporting requests can
         # supply a month or date range and receive the matching transaction set.
@@ -62,7 +61,9 @@ class FinanceSnapshotAPIView(APIView):
 
         is_report_request = bool(report_month or date_from or date_to or request.query_params.get("all_activity") == "true")
         ordered_activity = activity_query.order_by("-created_at")
-        recent_txs = ordered_activity[:5000] if is_report_request else ordered_activity[:50]
+        recent_activity_total = activity_query.count()
+        recent_activity_limit = 5000 if is_report_request else 50
+        recent_txs = ordered_activity[:recent_activity_limit]
         recent_activity = [
             {
                 "id": str(tx.uuid),
@@ -97,6 +98,8 @@ class FinanceSnapshotAPIView(APIView):
             "availableCash": float(available_cash),
             "monthlyCollections": float(monthly_collections),
             "recentActivity": recent_activity,
+            "recentActivityTotal": recent_activity_total,
+            "recentActivityLimit": recent_activity_limit,
             "groupWallet": wallet_report["groupWallet"],
             "memberWallets": wallet_report["memberWallets"],
         })

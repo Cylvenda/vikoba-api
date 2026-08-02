@@ -61,10 +61,22 @@ DEBUG = env_bool("DEBUG", False)
 ALLOWED_HOSTS = env_list(
     "ALLOWED_HOSTS", ["localhost", "127.0.0.1", "vikoba-api.onrender.com"]
 )
+render_external_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
+if render_external_hostname and render_external_hostname not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_external_hostname)
 DEV_ALLOW_ALL_HOSTS = env_bool("DEV_ALLOW_ALL_HOSTS", DEBUG)
 
 if DEBUG and DEV_ALLOW_ALL_HOSTS:
     ALLOWED_HOSTS = ["*"]
+
+# Render terminates TLS at its proxy and forwards the original protocol.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", False)
+SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", not DEBUG)
+CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", not DEBUG)
+SECURE_HSTS_SECONDS = env_int("SECURE_HSTS_SECONDS", 0)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", False)
+SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", False)
 
 
 AUTH_COOKIE = "access"
@@ -346,4 +358,5 @@ SPECTACULAR_SETTINGS = {
 CLICKPESA_CLIENT_ID = os.getenv("CLICKPESA_CLIENT_ID")
 CLICKPESA_API_KEY = os.getenv("CLICKPESA_API_KEY")
 CLICKPESA_CHECKSUM_KEY = os.getenv("CLICKPESA_CHECKSUM_KEY")
-CLICKPESA_SANDBOX = env_bool("CLICKPESA_SANDBOX", default=True)
+CLICKPESA_SANDBOX = env_bool("CLICKPESA_SANDBOX", default=False)
+ENABLE_DEMO_PAYOUTS = env_bool("ENABLE_DEMO_PAYOUTS", default=True)
