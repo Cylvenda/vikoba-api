@@ -103,6 +103,24 @@ class UserFinanceOverviewTests(APITestCase):
             performed_by="Overview Member",
             created_by=self.user,
         )
+        other_contribution = Contribution.objects.create(
+            group=self.group,
+            member=self.other_membership,
+            amount=Decimal("700.00"),
+            status=Contribution.Status.VERIFIED,
+            paid_at=timezone.now(),
+            received_by=self.other_user,
+        )
+        Transaction.objects.create(
+            group=self.group,
+            transaction_type=Transaction.Type.CONTRIBUTION,
+            direction=Transaction.Direction.IN,
+            amount=Decimal("700.00"),
+            reference_id=other_contribution.uuid,
+            description="Other member contribution",
+            performed_by="Other Member",
+            created_by=self.other_user,
+        )
 
         self.client.force_authenticate(user=self.user)
         response = self.client.get("/api/finance/overview/")
@@ -113,8 +131,9 @@ class UserFinanceOverviewTests(APITestCase):
         self.assertEqual(response.data["unpaidFines"], 50.0)
         self.assertEqual(response.data["consolidatedCash"], 1234.0)
         self.assertEqual(response.data["recentActivity"][0]["groupName"], self.group.name)
+        self.assertEqual(response.data["recentActivity"][0]["title"], "Verified contribution")
         self.assertEqual(response.data["recentActivityTotal"], 1)
-        self.assertEqual(response.data["recentActivityLimit"], 5)
+        self.assertEqual(response.data["recentActivityLimit"], 10)
         wallet.refresh_from_db()
         self.assertEqual(wallet.updated_at, wallet_updated_at)
 

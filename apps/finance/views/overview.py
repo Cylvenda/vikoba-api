@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,6 +11,7 @@ from apps.finance.models import (
     FinePayment,
     GroupWallet,
     Loan,
+    LoanRepayment,
     Transaction,
 )
 from apps.groups.models import GroupMembership
@@ -69,9 +70,30 @@ class UserFinanceOverviewAPIView(APIView):
             or Decimal("0.00")
         )
 
-        transaction_query = Transaction.objects.filter(group_id__in=group_ids)
+        user_contribution_ids = Contribution.objects.filter(
+            member__in=memberships,
+            status=Contribution.Status.VERIFIED,
+        ).values("uuid")
+        user_loan_ids = Loan.objects.filter(
+            borrower__in=memberships,
+        ).values("uuid")
+        user_repayment_ids = LoanRepayment.objects.filter(
+            loan__borrower__in=memberships,
+        ).values("uuid")
+        user_fine_payment_ids = FinePayment.objects.filter(
+            fine__member__in=memberships,
+        ).values("uuid")
+
+        transaction_query = Transaction.objects.filter(
+            group_id__in=group_ids,
+        ).filter(
+            Q(transaction_type=Transaction.Type.CONTRIBUTION, reference_id__in=user_contribution_ids)
+            | Q(transaction_type=Transaction.Type.LOAN_DISBURSEMENT, reference_id__in=user_loan_ids)
+            | Q(transaction_type=Transaction.Type.LOAN_REPAYMENT, reference_id__in=user_repayment_ids)
+            | Q(transaction_type=Transaction.Type.FINE_PAYMENT, reference_id__in=user_fine_payment_ids)
+        )
         recent_activity_total = transaction_query.count()
-        recent_activity_limit = 5
+        recent_activity_limit = 10
         recent_transactions = (
             transaction_query
             .select_related("created_by", "group")
