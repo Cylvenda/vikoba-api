@@ -75,31 +75,37 @@ class BrevoEmailBackend(BaseEmailBackend):
         return sent_count
 
     def _send(self, message):
-        to_recipients = []
-        raw_recipients = [
-            *(message.to or []),
-            *(getattr(message, "cc", []) or []),
-            *(getattr(message, "bcc", []) or []),
-        ]
-        seen_emails = set()
-        for name, address in getaddresses(raw_recipients):
-            address = address.strip()
-            try:
-                validate_email(address)
-            except ValidationError:
-                logger.warning("Skipping invalid Brevo recipient address: %r", address)
-                continue
+        def build_recipients(raw_recipients):
+            recipients = []
+            seen_emails = set()
+            for name, address in getaddresses(raw_recipients):
+                address = address.strip()
+                try:
+                    validate_email(address)
+                except ValidationError:
+                    logger.warning("Skipping invalid Brevo recipient address: %r", address)
+                    continue
 
-            normalized_address = address.casefold()
-            if normalized_address in seen_emails:
-                continue
-            seen_emails.add(normalized_address)
-            recipient = {"email": address}
-            if name.strip():
-                recipient["name"] = name.strip()
-            to_recipients.append(recipient)
+                normalized_address = address.casefold()
+                if normalized_address in seen_emails:
+                    continue
+                seen_emails.add(normalized_address)
+                recipient = {"email": address}
+                if name.strip():
+                    recipient["name"] = name.strip()
+                recipients.append(recipient)
+            return recipients
 
-        if not to_recipients:
+        to_recipients = build_recipients(message.to or [])
+        cc_recipients = build_recipients(getattr(message, "cc", []) or [])
+        bcc_recipients = build_recipients(getattr(message, "bcc", []) or [])
+
+        all_recipient_emails = {
+            recipient["email"].casefold()
+            for recipients in (to_recipients, cc_recipients, bcc_recipients)
+            for recipient in recipients
+        }
+        if not all_recipient_emails:
             raise ValueError("Email has no valid recipient addresses.")
 
         payload = {
@@ -107,10 +113,20 @@ class BrevoEmailBackend(BaseEmailBackend):
                 "name": self.sender_name,
                 "email": self.sender_email,
             },
-            "to": to_recipients,
             "subject": message.subject,
             "textContent": message.body,
         }
+
+        if to_recipients:
+            payload["to"] = to_recipients
+        if cc_recipients:
+            payload["cc"] = cc_recipients
+        if bcc_recipients:
+            payload["bcc"] = bcc_recipients
+
+        if not to_recipients:
+            payload["to"] = [{"email": self.sender_email, "name": self.sender_name}]
+
         html_body = self._html_body(message)
         if html_body:
             payload["htmlContent"] = html_body
